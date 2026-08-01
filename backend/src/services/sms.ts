@@ -69,12 +69,18 @@ export async function sendSmsOtp(to: string, code: string): Promise<SmsSendResul
     }
   }
 
-  try {
-    return await sendViaTextBelt(to, code);
-  } catch (err) {
-    if (err instanceof SmsDeliveryError) throw err;
-    throw new SmsDeliveryError(
-      "SMS is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER (recommended), or TEXTBELT_KEY."
-    );
+  // TextBelt free tier is unreliable for many countries — only try if a key is set
+  if (env.textbeltKey) {
+    try {
+      return await sendViaTextBelt(to, code);
+    } catch (err) {
+      if (err instanceof SmsDeliveryError) throw err;
+      const message = err instanceof Error ? err.message : "unknown error";
+      throw new SmsDeliveryError(`SMS delivery failed via TextBelt: ${message}`);
+    }
   }
+
+  throw new SmsDeliveryError(
+    "SMS OTP is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER to backend/.env (Twilio Console → Account → Phone Numbers), then restart the API."
+  );
 }

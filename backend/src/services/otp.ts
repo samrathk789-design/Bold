@@ -40,12 +40,18 @@ export async function createOtpChallenge(channel: OtpChannel, rawDestination: st
      VALUES (?, ?, ?, ?, ?)`
   ).run(id, channel, destination, hashCode(code), expiresAt);
 
-  // Deliver BEFORE returning success — entry only after verify
+  // Deliver BEFORE returning success — entry only after correct verify
+  let deliveryPreviewUrl: string | undefined;
+  let deliveryProvider: string | undefined;
+
   if (channel === "email") {
-    await sendEmailOtp(destination, code);
-    console.log(`[OTP] email → ${destination} | expires=${expiresAt}`);
+    const sent = await sendEmailOtp(destination, code);
+    deliveryProvider = sent.provider;
+    deliveryPreviewUrl = sent.previewUrl;
+    console.log(`[OTP] email → ${destination} | provider=${sent.provider} | expires=${expiresAt}`);
   } else {
     const { provider } = await sendSmsOtp(destination, code);
+    deliveryProvider = provider;
     console.log(`[OTP] phone → ${destination} | provider=${provider} | expires=${expiresAt}`);
   }
 
@@ -55,7 +61,9 @@ export async function createOtpChallenge(channel: OtpChannel, rawDestination: st
     destination,
     expiresAt,
     expiresInSeconds: env.otpTtlSeconds,
-    // Only when EXPOSE_OTP_IN_RESPONSE=true (emergency debug)
+    deliveryProvider,
+    // Ethereal preview only (dev) — never include the raw code unless debug flag
+    ...(deliveryPreviewUrl ? { deliveryPreviewUrl } : {}),
     ...(env.exposeOtp ? { debugOtp: code } : {}),
   };
 }

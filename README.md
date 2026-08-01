@@ -1,60 +1,62 @@
 # Bold
 
-Trading guidance for beginners — **signals**, **journaling**, and **algo trading**.
+Login-first app for traders. **Phone OTP**, **Email OTP**, and **Gmail** — entry only after the code is verified.
 
-## What's in this base
+## Subagents
 
-- **Landing page** — Bold brand hero
-- **Login** — Phone OTP, Email OTP, Google (Gmail)
-- **Backend API** — Express + SQLite + JWT sessions, hashed OTPs, rate limits
-- **Workspace** — Live signals, journal CRUD, algo bot stubs
+Project agents in `.cursor/agents/`:
 
-## Quick start
+| Agent | Owns |
+|-------|------|
+| `otp-phone` | SMS OTP (Twilio) |
+| `otp-email` | Email OTP (Resend / SMTP) |
+| `login-ui` | Login page UI only |
+
+## Run
 
 ```bash
 npm run install:all
 npm run dev
 ```
 
-- Frontend: http://localhost:5173  
+- App (login): http://localhost:5173  
 - API: http://localhost:4000/api/health  
 
-Or run separately:
+## Make real OTP delivery work
+
+### Phone SMS (required for real texts)
+
+1. Create a free account at [Twilio](https://www.twilio.com/console)
+2. Copy **Account SID**, **Auth Token**, and a **From** phone number
+3. Put them in `backend/.env`:
 
 ```bash
-npm run dev:backend
-npm run dev:frontend
+TWILIO_ACCOUNT_SID=ACxxxxxxxx
+TWILIO_AUTH_TOKEN=your_token
+TWILIO_FROM_NUMBER=+1xxxxxxxxxx
+EXPOSE_OTP_IN_RESPONSE=false
 ```
 
-## Auth notes
+4. Restart the API. Send OTP from the login page — the SMS arrives on the phone. Paste the code to enter.
 
-| Method | How it works |
-|--------|----------------|
-| Phone / Email OTP | `POST /api/auth/otp/start` → enter code → `POST /api/auth/otp/verify` |
-| Google | Set `GOOGLE_CLIENT_ID` for real ID tokens. In **dev**, use Continue with Google (`dev:you@gmail.com`) |
+### Email
 
-In development, OTP codes are logged in the API console and returned as `debugOtp` when `EXPOSE_OTP_IN_RESPONSE=true`.
+**Production / real Gmail inbox**
 
-## API map
-
-- `GET /api/health`
-- `GET /api/auth/config`
-- `POST /api/auth/otp/start` `{ channel: "phone"|"email", destination }`
-- `POST /api/auth/otp/verify` `{ challengeId, code }`
-- `POST /api/auth/google` `{ idToken }`
-- `GET /api/auth/me` (Bearer token)
-- `POST /api/auth/logout`
-- `GET /api/signals`
-- `GET|POST /api/journal`
-- `GET|POST /api/algos`
-
-## Project layout
-
-```
-backend/   Express + TypeScript + SQLite
-frontend/  Vite + React + TypeScript
+```bash
+RESEND_API_KEY=re_xxxxx
+EMAIL_FROM=Bold <onboarding@resend.dev>
 ```
 
-## Next
+Or SMTP (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`).
 
-After this base, paste your UI prompt / screenshots and we refine the product UI.
+**Development (no keys):** email OTP uses an Ethereal preview link. The login page shows **Open email to copy your OTP**.
+
+## Auth flow
+
+1. Enter phone or email → **Send OTP**
+2. Message is delivered (SMS / email)
+3. Paste OTP → **Verify & enter**
+4. JWT session issued only after a correct code
+
+OTP codes are hashed in SQLite, expire, and have attempt limits. The code is **never** returned in the API unless `EXPOSE_OTP_IN_RESPONSE=true`.

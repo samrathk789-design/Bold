@@ -16,7 +16,22 @@ export type AuthConfig = {
   otpLength: number;
   otpTtlSeconds: number;
   exposeOtp: boolean;
+  smsReady: boolean;
+  emailReady: boolean;
+  smsSetupHint: string | null;
+  emailSetupHint: string | null;
   devGoogleHint: string | null;
+};
+
+export type OtpStartResult = {
+  challengeId: string;
+  expiresAt: string;
+  expiresInSeconds: number;
+  destination: string;
+  channel: string;
+  message: string;
+  deliveryProvider?: string;
+  deliveryPreviewUrl?: string;
 };
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -39,14 +54,7 @@ export const api = {
   health: () => request<{ ok: boolean }>("/api/health"),
   authConfig: () => request<AuthConfig>("/api/auth/config"),
   startOtp: (channel: "email" | "phone", destination: string) =>
-    request<{
-      challengeId: string;
-      expiresAt: string;
-      expiresInSeconds: number;
-      destination: string;
-      channel: string;
-      message: string;
-    }>("/api/auth/otp/start", {
+    request<OtpStartResult>("/api/auth/otp/start", {
       method: "POST",
       body: JSON.stringify({ channel, destination }),
     }),

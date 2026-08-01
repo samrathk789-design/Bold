@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { api } from "../api";
+import { api, type AuthConfig } from "../api";
 import { useAuth } from "../auth";
 import "./Login.css";
 
@@ -21,11 +21,12 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [devGoogleEmail, setDevGoogleEmail] = useState("trader@gmail.com");
-  const [googleHint, setGoogleHint] = useState<string | null>(null);
+  const [config, setConfig] = useState<AuthConfig | null>(null);
   const [resendIn, setResendIn] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    void api.authConfig().then((c) => setGoogleHint(c.devGoogleHint));
+    void api.authConfig().then(setConfig).catch(() => setConfig(null));
   }, []);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export function LoginPage() {
     const res = await api.startOtp(ch, dest);
     setChallengeId(res.challengeId);
     setMaskedTo(res.destination);
+    setPreviewUrl(res.deliveryPreviewUrl ?? null);
     setStep("otp");
     setCode("");
     setResendIn(RESEND_SECONDS);
@@ -113,8 +115,8 @@ export function LoginPage() {
         <h1 className="login__title">Sign in</h1>
         <p className="login__sub">
           {step === "identify"
-            ? "Enter your phone or email, or continue with Gmail."
-            : `Paste the code we sent to ${maskedTo}.`}
+            ? "Enter your phone or email. We’ll send a one-time code — paste it here to enter."
+            : `Paste the OTP sent to ${maskedTo}.`}
         </p>
 
         {step === "identify" && (
@@ -163,6 +165,13 @@ export function LoginPage() {
               </button>
             </form>
 
+            {channel === "phone" && config?.smsSetupHint && (
+              <p className="login__hint">{config.smsSetupHint}</p>
+            )}
+            {channel === "email" && config?.emailSetupHint && (
+              <p className="login__hint">{config.emailSetupHint}</p>
+            )}
+
             <div className="login__divider">
               <span>or</span>
             </div>
@@ -186,7 +195,7 @@ export function LoginPage() {
                 <GoogleIcon />
                 Continue with Google
               </button>
-              {googleHint && <p className="login__hint">{googleHint}</p>}
+              {config?.devGoogleHint && <p className="login__hint">{config.devGoogleHint}</p>}
             </div>
           </>
         )}
@@ -206,8 +215,15 @@ export function LoginPage() {
                 required
               />
             </label>
+
+            {previewUrl && (
+              <a className="login__preview" href={previewUrl} target="_blank" rel="noreferrer">
+                Open email to copy your OTP
+              </a>
+            )}
+
             <button className="btn btn--primary btn--block" type="submit" disabled={busy || code.length < 4}>
-              {busy ? "Verifying…" : "Verify & continue"}
+              {busy ? "Verifying…" : "Verify & enter"}
             </button>
             <div className="login__otp-actions">
               <button
@@ -225,6 +241,7 @@ export function LoginPage() {
                   setStep("identify");
                   setCode("");
                   setChallengeId("");
+                  setPreviewUrl(null);
                   setError(null);
                   setResendIn(0);
                 }}
@@ -244,7 +261,9 @@ export function LoginPage() {
 
       <aside className="login__aside" aria-hidden="true">
         <p className="login__aside-brand">Bold</p>
-        <p className="login__aside-copy">Secure sign-in with a one-time code. No passwords to remember.</p>
+        <p className="login__aside-copy">
+          Phone or email OTP. You only get in after the code from your message is verified.
+        </p>
       </aside>
     </div>
   );
@@ -258,7 +277,7 @@ function GoogleIcon() {
         d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"
       />
       <path
-        fill="#FF3D00"
+        fill="#FFC107"
         d="M6.3 14.7l6.6 4.8C14.7 16.1 19 14 24 14c3.1 0 5.8 1.2 8 3l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"
       />
       <path

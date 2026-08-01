@@ -99,12 +99,26 @@ router.post("/logout", requireAuth, (req, res) => {
 });
 
 router.get("/config", (_req, res) => {
+  const smsReady = Boolean(
+    env.twilioAccountSid && env.twilioAuthToken && env.twilioFromNumber
+  );
+  const emailReady = Boolean(
+    env.resendApiKey || (env.smtpHost && env.smtpUser && env.smtpPass) || env.isDev
+  );
   res.json({
     googleClientId: env.googleClientId || null,
     googleEnabled: Boolean(env.googleClientId) || env.isDev,
     otpLength: env.otpLength,
     otpTtlSeconds: env.otpTtlSeconds,
     exposeOtp: env.exposeOtp,
+    smsReady,
+    emailReady,
+    smsSetupHint: smsReady
+      ? null
+      : "Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER in backend/.env to send real SMS OTPs.",
+    emailSetupHint: env.resendApiKey || (env.smtpHost && env.smtpUser && env.smtpPass)
+      ? null
+      : "Dev mode uses an email preview link. For real Gmail delivery set RESEND_API_KEY or SMTP_* in backend/.env.",
     devGoogleHint: env.isDev && !env.googleClientId
       ? "Use Continue with Google (dev) or send idToken as 'dev:you@gmail.com'"
       : null,
