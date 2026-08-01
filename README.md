@@ -52,6 +52,22 @@ Or SMTP (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`).
 
 **Development (no keys):** email OTP uses an Ethereal preview link. The login page shows **Open email to copy your OTP**.
 
+## Bold Brain (OpenRouter)
+
+After login, chat with the trading coach at `/app`.
+
+Set in `backend/.env` (never commit the real key):
+
+```bash
+OPENROUTER_API_KEY=sk-or-v1-...
+OPENROUTER_MODEL=openai/gpt-4o-mini
+```
+
+API:
+
+- `GET /api/brain/status` (auth)
+- `POST /api/brain/chat` `{ message, history? }` (auth)
+
 ## Auth flow
 
 1. Enter phone or email → **Send OTP**

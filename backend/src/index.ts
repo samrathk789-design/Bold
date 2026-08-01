@@ -7,6 +7,7 @@ import { env } from "./config.js";
 import "./db/index.js";
 import authRoutes from "./routes/auth.js";
 import tradingRoutes from "./routes/trading.js";
+import brainRoutes from "./routes/brain.js";
 
 const app = express();
 
@@ -32,12 +33,14 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "bold-api",
-    version: "1.0.0",
+    version: "1.1.0",
+    brain: Boolean(env.openRouterApiKey),
     time: new Date().toISOString(),
   });
 });
 
 app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/brain", brainRoutes);
 app.use("/api", tradingRoutes);
 
 app.use((_req, res) => {
@@ -59,4 +62,5 @@ app.use(
 app.listen(env.port, () => {
   console.log(`Bold API running on http://localhost:${env.port}`);
   console.log(`Health: http://localhost:${env.port}/api/health`);
+  console.log(`Brain: ${env.openRouterApiKey ? "ready" : "not configured"}`);
 });
