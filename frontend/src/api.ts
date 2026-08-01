@@ -45,7 +45,6 @@ export const api = {
       expiresInSeconds: number;
       destination: string;
       channel: string;
-      debugOtp?: string;
       message: string;
     }>("/api/auth/otp/start", {
       method: "POST",
@@ -63,45 +62,6 @@ export const api = {
     }),
   me: () => request<{ user: User }>("/api/auth/me"),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
-  signals: () =>
-    request<{
-      signals: Array<{
-        id: string;
-        symbol: string;
-        side: string;
-        timeframe: string;
-        entry: number;
-        stopLoss: number;
-        takeProfit: number;
-        confidence: number;
-        rationale: string;
-      }>;
-    }>("/api/signals"),
-  journal: () =>
-    request<{
-      entries: Array<{
-        id: string;
-        symbol: string;
-        side: string;
-        entryPrice: number;
-        notes: string | null;
-        tradedAt: string;
-      }>;
-    }>("/api/journal"),
-  createJournal: (body: {
-    symbol: string;
-    side: "BUY" | "SELL";
-    entryPrice: number;
-    notes?: string;
-  }) =>
-    request<{ entry: unknown }>("/api/journal", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  algos: () =>
-    request<{
-      bots: Array<{ id: string; name: string; strategy: string; status: string }>;
-    }>("/api/algos"),
 };
 
 export function saveSession(token: string, user: User) {

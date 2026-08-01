@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import "./Login.css";
 
 type Channel = "phone" | "email";
 type Step = "identify" | "otp";
+
+const RESEND_SECONDS = 30;
 
 export function LoginPage() {
   const { user, setSession } = useAuth();
@@ -15,32 +17,55 @@ export function LoginPage() {
   const [destination, setDestination] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [maskedTo, setMaskedTo] = useState("");
-  const [debugOtp, setDebugOtp] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [devGoogleEmail, setDevGoogleEmail] = useState("trader@gmail.com");
   const [googleHint, setGoogleHint] = useState<string | null>(null);
+  const [resendIn, setResendIn] = useState(0);
 
   useEffect(() => {
     void api.authConfig().then((c) => setGoogleHint(c.devGoogleHint));
   }, []);
 
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [resendIn]);
+
   if (user) return <Navigate to="/app" replace />;
+
+  async function sendOtp(dest: string, ch: Channel) {
+    const res = await api.startOtp(ch, dest);
+    setChallengeId(res.challengeId);
+    setMaskedTo(res.destination);
+    setStep("otp");
+    setCode("");
+    setResendIn(RESEND_SECONDS);
+  }
 
   async function startOtp(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      const res = await api.startOtp(channel, destination.trim());
-      setChallengeId(res.challengeId);
-      setMaskedTo(res.destination);
-      setDebugOtp(res.debugOtp ?? null);
-      setStep("otp");
-      setCode(res.debugOtp ?? "");
+      await sendOtp(destination.trim(), channel);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send OTP");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendOtp() {
+    if (resendIn > 0 || busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await sendOtp(destination.trim(), channel);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not resend OTP");
     } finally {
       setBusy(false);
     }
@@ -80,16 +105,16 @@ export function LoginPage() {
   return (
     <div className="login">
       <div className="login__panel">
-        <Link to="/" className="brand login__brand">
+        <div className="brand login__brand">
           <span className="brand__mark" aria-hidden="true" />
           <span className="brand__name">Bold</span>
-        </Link>
+        </div>
 
-        <h1 className="login__title">Sign in to Bold</h1>
+        <h1 className="login__title">Sign in</h1>
         <p className="login__sub">
           {step === "identify"
-            ? "Use your phone, email, or Gmail to continue."
-            : `Enter the OTP sent to ${maskedTo}.`}
+            ? "Enter your phone or email, or continue with Gmail."
+            : `Paste the code we sent to ${maskedTo}.`}
         </p>
 
         {step === "identify" && (
@@ -100,7 +125,10 @@ export function LoginPage() {
                 role="tab"
                 aria-selected={channel === "phone"}
                 className={channel === "phone" ? "is-active" : undefined}
-                onClick={() => setChannel("phone")}
+                onClick={() => {
+                  setChannel("phone");
+                  setError(null);
+                }}
               >
                 Phone
               </button>
@@ -109,7 +137,10 @@ export function LoginPage() {
                 role="tab"
                 aria-selected={channel === "email"}
                 className={channel === "email" ? "is-active" : undefined}
-                onClick={() => setChannel("email")}
+                onClick={() => {
+                  setChannel("email");
+                  setError(null);
+                }}
               >
                 Email
               </button>
@@ -138,7 +169,7 @@ export function LoginPage() {
 
             <div className="login__google">
               <label className="field">
-                <span>Gmail (Google)</span>
+                <span>Gmail</span>
                 <input
                   type="email"
                   placeholder="you@gmail.com"
@@ -163,49 +194,57 @@ export function LoginPage() {
         {step === "otp" && (
           <form className="login__form" onSubmit={verifyOtp}>
             <label className="field">
-              <span>One-time password</span>
+              <span>One-time code</span>
               <input
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="6-digit code"
+                placeholder="Paste code from SMS or email"
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                autoFocus
                 required
               />
             </label>
-            {debugOtp && (
-              <p className="login__debug">
-                Dev OTP: <strong>{debugOtp}</strong>
-              </p>
-            )}
             <button className="btn btn--primary btn--block" type="submit" disabled={busy || code.length < 4}>
               {busy ? "Verifying…" : "Verify & continue"}
             </button>
-            <button
-              type="button"
-              className="btn btn--text btn--block"
-              onClick={() => {
-                setStep("identify");
-                setCode("");
-                setDebugOtp(null);
-                setError(null);
-              }}
-            >
-              Use a different number or email
-            </button>
+            <div className="login__otp-actions">
+              <button
+                type="button"
+                className="btn btn--text"
+                disabled={busy || resendIn > 0}
+                onClick={() => void resendOtp()}
+              >
+                {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend OTP"}
+              </button>
+              <button
+                type="button"
+                className="btn btn--text"
+                onClick={() => {
+                  setStep("identify");
+                  setCode("");
+                  setChallengeId("");
+                  setError(null);
+                  setResendIn(0);
+                }}
+              >
+                Change phone or email
+              </button>
+            </div>
           </form>
         )}
 
-        {error && <p className="login__error" role="alert">{error}</p>}
+        {error && (
+          <p className="login__error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
 
       <aside className="login__aside" aria-hidden="true">
         <p className="login__aside-brand">Bold</p>
-        <p className="login__aside-copy">
-          Learn the market with signals you can trust, a journal that keeps you honest, and algos when
-          you are ready.
-        </p>
+        <p className="login__aside-copy">Secure sign-in with a one-time code. No passwords to remember.</p>
       </aside>
     </div>
   );
