@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { env } from "../config.js";
 import { db } from "../db/index.js";
+import { sendEmailOtp } from "./email.js";
+import { sendSmsOtp } from "./sms.js";
 
 export type OtpChannel = "email" | "phone";
 
@@ -21,7 +23,7 @@ export function normalizeDestination(channel: OtpChannel, destination: string): 
   return cleaned.startsWith("+") ? cleaned : `+${cleaned.replace(/^\+/, "")}`;
 }
 
-export function createOtpChallenge(channel: OtpChannel, rawDestination: string) {
+export async function createOtpChallenge(channel: OtpChannel, rawDestination: string) {
   const destination = normalizeDestination(channel, rawDestination);
   const code = generateCode();
   const id = crypto.randomUUID();
@@ -38,8 +40,14 @@ export function createOtpChallenge(channel: OtpChannel, rawDestination: string) 
      VALUES (?, ?, ?, ?, ?)`
   ).run(id, channel, destination, hashCode(code), expiresAt);
 
-  // Dev-friendly delivery: log OTP. Swap for Twilio/SendGrid later.
-  console.log(`[OTP] ${channel} → ${destination} | code=${code} | expires=${expiresAt}`);
+  // Deliver BEFORE returning success — entry only after verify
+  if (channel === "email") {
+    await sendEmailOtp(destination, code);
+    console.log(`[OTP] email → ${destination} | expires=${expiresAt}`);
+  } else {
+    const { provider } = await sendSmsOtp(destination, code);
+    console.log(`[OTP] phone → ${destination} | provider=${provider} | expires=${expiresAt}`);
+  }
 
   return {
     challengeId: id,
@@ -47,6 +55,7 @@ export function createOtpChallenge(channel: OtpChannel, rawDestination: string) 
     destination,
     expiresAt,
     expiresInSeconds: env.otpTtlSeconds,
+    // Only when EXPOSE_OTP_IN_RESPONSE=true (emergency debug)
     ...(env.exposeOtp ? { debugOtp: code } : {}),
   };
 }

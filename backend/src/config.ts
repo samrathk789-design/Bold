@@ -17,4 +17,17 @@ export const env = {
   exposeOtp: process.env.EXPOSE_OTP_IN_RESPONSE === "true",
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
   frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:5173",
+  // Email OTP (prefer Resend, else SMTP)
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
+  emailFrom: process.env.EMAIL_FROM ?? "Bold <onboarding@resend.dev>",
+  smtpHost: process.env.SMTP_HOST ?? "",
+  smtpPort: Number(process.env.SMTP_PORT ?? 587),
+  smtpUser: process.env.SMTP_USER ?? "",
+  smtpPass: process.env.SMTP_PASS ?? "",
+  smtpSecure: process.env.SMTP_SECURE === "true",
+  // Phone SMS (Twilio preferred, TextBelt fallback)
+  twilioAccountSid: process.env.TWILIO_ACCOUNT_SID ?? "",
+  twilioAuthToken: process.env.TWILIO_AUTH_TOKEN ?? "",
+  twilioFromNumber: process.env.TWILIO_FROM_NUMBER ?? "",
+  textbeltKey: process.env.TEXTBELT_KEY ?? "",
 };

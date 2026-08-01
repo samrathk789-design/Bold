@@ -36,16 +36,22 @@ const googleSchema = z.object({
   idToken: z.string().min(1),
 });
 
-router.post("/otp/start", (req, res) => {
+router.post("/otp/start", async (req, res) => {
   const parsed = startSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
   }
-  const challenge = createOtpChallenge(parsed.data.channel, parsed.data.destination);
-  return res.json({
-    message: `OTP sent to your ${parsed.data.channel}`,
-    ...challenge,
-  });
+  try {
+    const challenge = await createOtpChallenge(parsed.data.channel, parsed.data.destination);
+    return res.json({
+      message: `OTP sent to your ${parsed.data.channel}`,
+      ...challenge,
+    });
+  } catch (err) {
+    const status = (err as { status?: number }).status ?? 500;
+    const message = err instanceof Error ? err.message : "Failed to send OTP";
+    return res.status(status).json({ error: message });
+  }
 });
 
 router.post("/otp/verify", (req, res) => {
