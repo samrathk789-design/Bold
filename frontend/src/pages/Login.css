@@ -1,0 +1,229 @@
+.login {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  background:
+    radial-gradient(ellipse 70% 55% at 8% -5%, rgba(154, 255, 107, 0.12), transparent 50%),
+    radial-gradient(ellipse 40% 35% at 90% 80%, rgba(154, 255, 107, 0.05), transparent 45%),
+    var(--bg);
+}
+
+.login__panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+  animation: login-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login__brand {
+  margin-bottom: 2.25rem;
+}
+
+.login__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 3.2vw, 2.4rem);
+  letter-spacing: -0.045em;
+  font-weight: 800;
+}
+
+.login__sub {
+  margin: 0.55rem 0 1.75rem;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 34ch;
+}
+
+.login__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+  padding: 0.28rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  margin-bottom: 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.login__tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.login__tabs button.is-active {
+  background: rgba(154, 255, 107, 0.14);
+  color: var(--ink);
+}
+
+.login__form {
+  display: grid;
+  gap: 1rem;
+}
+
+.login__divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.35rem 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.login__divider::before,
+.login__divider::after {
+  content: "";
+  height: 1px;
+  background: var(--line);
+}
+
+.login__google {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.login__hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.login__preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(154, 255, 107, 0.35);
+  background: rgba(154, 255, 107, 0.08);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.login__preview:hover {
+  background: rgba(154, 255, 107, 0.14);
+}
+
+.login__otp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: 0.15rem;
+}
+
+.login__otp-actions .btn--text {
+  padding-inline: 0;
+}
+
+.login__error {
+  margin: 1rem 0 0;
+  color: var(--danger);
+  font-size: 0.92rem;
+}
+
+.login__aside {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: clamp(2rem, 5vw, 3.5rem);
+  background:
+    linear-gradient(160deg, rgba(7, 20, 17, 0.15), rgba(7, 20, 17, 0.88)),
+    radial-gradient(circle at 72% 28%, rgba(154, 255, 107, 0.28), transparent 42%),
+    linear-gradient(145deg, #0d2a22, #06140f 72%);
+  border-left: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.login__aside::before {
+  content: "";
+  position: absolute;
+  inset: 12% -10% auto;
+  height: 55%;
+  background: linear-gradient(90deg, transparent, rgba(154, 255, 107, 0.35), transparent);
+  transform: skewY(-12deg);
+  opacity: 0.35;
+  animation: shimmer 7s ease-in-out infinite;
+}
+
+.login__aside-brand {
+  position: relative;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(3rem, 7vw, 5rem);
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+  animation: brand-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+}
+
+.login__aside-copy {
+  position: relative;
+  margin: 1rem 0 0;
+  max-width: 28ch;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  animation: brand-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) 220ms both;
+}
+
+@keyframes login-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes brand-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    transform: skewY(-12deg) translateX(-4%);
+    opacity: 0.25;
+  }
+  50% {
+    transform: skewY(-12deg) translateX(4%);
+    opacity: 0.45;
+  }
+}
+
+@media (max-width: 900px) {
+  .login {
+    grid-template-columns: 1fr;
+  }
+
+  .login__aside {
+    min-height: 200px;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    order: -1;
+  }
+}

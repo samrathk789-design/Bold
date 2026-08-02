@@ -1,0 +1,118 @@
+.username-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(154, 255, 107, 0.12), transparent 55%),
+    #050505;
+  color: #fff;
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+}
+
+.username-page--center {
+  color: #888;
+}
+
+.username-page__card {
+  width: min(100%, 400px);
+  background: #121212;
+  border: 1px solid #222;
+  border-radius: 14px;
+  padding: 2rem 1.75rem;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.username-page__mark {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 0.85rem;
+  border-radius: 50%;
+  border: 1px solid #333;
+  background: #111;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.username-page__card h1 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.35rem;
+}
+
+.username-page__card > p {
+  color: #888;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
+}
+
+.username-page__label {
+  display: block;
+  text-align: left;
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 0.4rem;
+}
+
+.username-page__field {
+  display: flex;
+  align-items: center;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #000;
+  overflow: hidden;
+}
+
+.username-page__at {
+  padding: 0 0.15rem 0 0.85rem;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.username-page__field input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #fff;
+  padding: 0.75rem 0.85rem 0.75rem 0.15rem;
+  font-size: 0.95rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.username-page__hint {
+  text-align: left;
+  font-size: 0.75rem;
+  color: #555;
+  margin: 0.45rem 0 1rem;
+}
+
+.username-page__error {
+  color: #ff7a6e;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+  text-align: left;
+}
+
+.username-page__card button[type="submit"] {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: #ededed;
+  color: #000;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.username-page__card button[type="submit"]:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
