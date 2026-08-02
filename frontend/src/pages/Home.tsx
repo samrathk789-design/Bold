@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
-import { CTASection } from "@/components/ui/hero-dithering-card";
 import "./Home.css";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -13,6 +12,11 @@ const STARTERS = [
   "Explain stop-loss like I'm a beginner.",
 ];
 
+const GENERIC_ERROR = "Something went wrong — please try again.";
+
+/**
+ * Authenticated Bold Brain chat — only reachable after login.
+ */
 export function HomePage() {
   const { user, loading, logout } = useAuth();
   const [messages, setMessages] = useState<ChatMsg[]>([
@@ -26,19 +30,14 @@ export function HomePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [brainReady, setBrainReady] = useState<boolean | null>(null);
-  const [model, setModel] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const brainRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!user) return;
     void api
       .brainStatus()
-      .then((s) => {
-        setBrainReady(s.ready);
-        setModel(s.model ?? null);
-      })
+      .then((s) => setBrainReady(s.ready))
       .catch(() => setBrainReady(false));
   }, [user]);
 
@@ -54,7 +53,7 @@ export function HomePage() {
     );
   }
 
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />;
 
   const identity = user.username
     ? `@${user.username}`
@@ -74,9 +73,8 @@ export function HomePage() {
         history.map((m) => ({ role: m.role, content: m.content }))
       );
       setMessages((prev) => [...prev, { role: "assistant", content: res.reply }]);
-      setModel(res.model);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Brain request failed");
+    } catch {
+      setError(GENERIC_ERROR);
     } finally {
       setBusy(false);
     }
@@ -85,11 +83,6 @@ export function HomePage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     void send(input);
-  }
-
-  function focusBrain() {
-    brainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    window.setTimeout(() => inputRef.current?.focus(), 350);
   }
 
   return (
@@ -107,31 +100,20 @@ export function HomePage() {
         </div>
       </header>
 
-      <div className="home__hero">
-        <CTASection
-          badge="Bold Brain"
-          title={
-            <>
-              Your edge, <br />
-              <span className="text-white/80">explained clearly.</span>
-            </>
-          }
-          description="Ask Bold Brain about setups, risk, and journaling — beginner-clear coaching powered by OpenRouter."
-          ctaLabel="Ask Bold Brain"
-          onCtaClick={focusBrain}
-        />
-      </div>
-
-      <main className="home__main" ref={brainRef} id="brain">
+      <main className="home__main" id="brain">
         <div className="home__intro">
           <p className="home__eyebrow">Bold Brain</p>
           <h1 className="home__title">Your trading coach</h1>
-          <p className="home__sub">
-            Ask anything about learning to trade. Powered by OpenRouter
-            {model ? ` · ${model}` : ""}.
-          </p>
+          <p className="home__sub">Ask about setups, risk, journaling, and learning to trade.</p>
+          {brainReady === null && (
+            <p className="home__loading" role="status">
+              Loading…
+            </p>
+          )}
           {brainReady === false && (
-            <p className="home__warn">Brain is offline — check OPENROUTER_API_KEY on the server.</p>
+            <p className="home__warn" role="status">
+              Bold Brain is temporarily unavailable. Please try again later.
+            </p>
           )}
         </div>
 
@@ -152,10 +134,16 @@ export function HomePage() {
             <div ref={endRef} />
           </div>
 
-          {messages.length <= 1 && (
+          {messages.length <= 1 && !busy && (
             <div className="brain__starters">
               {STARTERS.map((s) => (
-                <button key={s} type="button" className="brain__chip" onClick={() => void send(s)} disabled={busy}>
+                <button
+                  key={s}
+                  type="button"
+                  className="brain__chip"
+                  onClick={() => void send(s)}
+                  disabled={busy || brainReady === false}
+                >
                   {s}
                 </button>
               ))}
@@ -171,8 +159,12 @@ export function HomePage() {
               disabled={busy || brainReady === false}
               maxLength={2000}
             />
-            <button className="btn btn--primary" type="submit" disabled={busy || !input.trim() || brainReady === false}>
-              Send
+            <button
+              className="btn btn--primary"
+              type="submit"
+              disabled={busy || !input.trim() || brainReady === false}
+            >
+              {busy ? "Sending…" : "Send"}
             </button>
           </form>
           {error && (

@@ -1,6 +1,6 @@
 import LandingPage from "./Landing";
 
-/** Showcase route — same combined landing (login + dithering CTA) */
+/** Public demo mirrors the landing (Log In only — no chat). */
 export default function DemoOne() {
   return <LandingPage />;
 }
