@@ -1,15 +1,111 @@
 import { ArrowRight } from "lucide-react"
-import { useState, Suspense, lazy } from "react"
+import {
+  useState,
+  Suspense,
+  lazy,
+  type ReactNode,
+  type CSSProperties,
+} from "react"
 
 const Dithering = lazy(() =>
   import("@paper-design/shaders-react").then((mod) => ({ default: mod.Dithering }))
 )
 
 /** Soft burnt orange — less aggressive than #EC4E02 */
-const ORANGE_SOFT = "#C46A3A"
-const ORANGE_MUTED = "#A85A32"
+export const ORANGE_SOFT = "#C46A3A"
+export const ORANGE_MUTED = "#A85A32"
 
-export function CTASection() {
+type WaveProps = {
+  className?: string
+  style?: CSSProperties
+  interactive?: boolean
+  boosted?: boolean
+}
+
+/** Full-bleed moving wave + ripple dithering layers */
+export function DitheringWaves({
+  className = "",
+  style,
+  interactive = true,
+  boosted = false,
+}: WaveProps) {
+  const [isHovered, setIsHovered] = useState(false)
+  const active = boosted || isHovered
+
+  return (
+    <div
+      className={`absolute inset-0 overflow-hidden bg-black ${className}`}
+      style={style}
+      onMouseEnter={interactive ? () => setIsHovered(true) : undefined}
+      onMouseLeave={interactive ? () => setIsHovered(false) : undefined}
+      aria-hidden="true"
+    >
+      <Suspense fallback={<div className="absolute inset-0 bg-black" />}>
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.32] mix-blend-screen">
+          <Dithering
+            colorBack="#00000000"
+            colorFront={ORANGE_SOFT}
+            shape="wave"
+            type="4x4"
+            size={3}
+            scale={1.15}
+            speed={active ? 1.15 : 0.55}
+            className="size-full"
+            minPixelRatio={1}
+          />
+        </div>
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.14] mix-blend-screen">
+          <Dithering
+            colorBack="#00000000"
+            colorFront={ORANGE_MUTED}
+            shape="ripple"
+            type="8x8"
+            size={4}
+            scale={0.85}
+            speed={active ? 0.7 : 0.35}
+            className="size-full"
+            minPixelRatio={1}
+          />
+        </div>
+      </Suspense>
+      <div
+        className="absolute inset-0 z-[1] pointer-events-none opacity-30"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 55% at 50% 110%, rgba(196, 106, 58, 0.22), transparent 58%)",
+          animation: "hero-wave-drift 9s ease-in-out infinite alternate",
+        }}
+      />
+      <style>{`
+        @keyframes hero-wave-drift {
+          0% { transform: translateY(0) scale(1); opacity: 0.22; }
+          100% { transform: translateY(-18px) scale(1.06); opacity: 0.38; }
+        }
+      `}</style>
+    </div>
+  )
+}
+
+export type CTASectionProps = {
+  badge?: string
+  title?: ReactNode
+  description?: string
+  ctaLabel?: string
+  onCtaClick?: () => void
+}
+
+export function CTASection({
+  badge = "AI-Powered Writing",
+  title = (
+    <>
+      Your words, <br />
+      <span className="text-white/80">delivered perfectly.</span>
+    </>
+  ),
+  description = "Join 2,847 founders using the only AI that understands the nuance of your voice. Clean, precise, and uniquely yours.",
+  ctaLabel = "Start Typing",
+  onCtaClick,
+}: CTASectionProps) {
   const [isHovered, setIsHovered] = useState(false)
 
   return (
@@ -20,46 +116,10 @@ export function CTASection() {
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="relative overflow-hidden rounded-[48px] border border-white/10 bg-black shadow-sm min-h-[600px] md:min-h-[600px] flex flex-col items-center justify-center duration-500">
-          <Suspense fallback={<div className="absolute inset-0 bg-black" />}>
-            {/* Primary moving wave field */}
-            <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.32] mix-blend-screen">
-              <Dithering
-                colorBack="#00000000"
-                colorFront={ORANGE_SOFT}
-                shape="wave"
-                type="4x4"
-                size={3}
-                scale={1.15}
-                speed={isHovered ? 1.15 : 0.55}
-                className="size-full"
-                minPixelRatio={1}
-              />
-            </div>
-            {/* Soft secondary ripple for depth */}
-            <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.14] mix-blend-screen">
-              <Dithering
-                colorBack="#00000000"
-                colorFront={ORANGE_MUTED}
-                shape="ripple"
-                type="8x8"
-                size={4}
-                scale={0.85}
-                speed={isHovered ? 0.7 : 0.35}
-                className="size-full"
-                minPixelRatio={1}
-              />
-            </div>
-          </Suspense>
-
-          {/* Gentle CSS wave wash */}
+          <DitheringWaves interactive={false} boosted={isHovered} />
           <div
-            className="absolute inset-0 z-[1] pointer-events-none opacity-30"
-            aria-hidden="true"
-            style={{
-              background:
-                "radial-gradient(ellipse 80% 55% at 50% 110%, rgba(196, 106, 58, 0.22), transparent 58%)",
-              animation: "hero-wave-drift 9s ease-in-out infinite alternate",
-            }}
+            className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-500"
+            style={{ opacity: isHovered ? 0.12 : 0, background: ORANGE_MUTED, mixBlendMode: "screen" }}
           />
 
           <div className="relative z-10 px-6 max-w-4xl mx-auto text-center flex flex-col items-center">
@@ -81,39 +141,32 @@ export function CTASection() {
                   style={{ background: ORANGE_SOFT }}
                 />
               </span>
-              AI-Powered Writing
+              {badge}
             </div>
 
             <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight text-white mb-8 leading-[1.05]">
-              Your words, <br />
-              <span className="text-white/80">delivered perfectly.</span>
+              {title}
             </h2>
 
             <p className="text-white/60 text-lg md:text-xl max-w-2xl mb-12 leading-relaxed">
-              Join 2,847 founders using the only AI that understands the nuance of your voice.
-              Clean, precise, and uniquely yours.
+              {description}
             </p>
 
             <button
+              type="button"
+              onClick={onCtaClick}
               className="group relative inline-flex h-14 items-center justify-center gap-3 overflow-hidden rounded-full px-12 text-base font-medium text-white transition-all duration-300 hover:scale-105 active:scale-95"
               style={{
                 background: ORANGE_MUTED,
                 boxShadow: isHovered ? "0 0 0 4px rgba(196, 106, 58, 0.18)" : "none",
               }}
             >
-              <span className="relative z-10">Start Typing</span>
+              <span className="relative z-10">{ctaLabel}</span>
               <ArrowRight className="h-5 w-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes hero-wave-drift {
-          0% { transform: translateY(0) scale(1); opacity: 0.22; }
-          100% { transform: translateY(-18px) scale(1.06); opacity: 0.38; }
-        }
-      `}</style>
     </section>
   )
 }

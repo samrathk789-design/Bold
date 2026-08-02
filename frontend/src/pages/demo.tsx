@@ -1,9 +1,6 @@
-import { CTASection } from "@/components/ui/hero-dithering-card";
+import LandingPage from "./Landing";
 
+/** Showcase route — same combined landing (login + dithering CTA) */
 export default function DemoOne() {
-  return (
-    <main className="min-h-screen bg-black text-white">
-      <CTASection />
-    </main>
-  );
+  return <LandingPage />;
 }

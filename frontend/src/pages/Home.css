@@ -49,6 +49,11 @@
   animation: home-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.home__hero {
+  width: 100%;
+  background: #000;
+}
+
 .home__intro {
   max-width: 40rem;
 }

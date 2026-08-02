@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { CTASection } from "@/components/ui/hero-dithering-card";
 import "./Home.css";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -27,6 +28,8 @@ export function HomePage() {
   const [brainReady, setBrainReady] = useState<boolean | null>(null);
   const [model, setModel] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const brainRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -84,6 +87,11 @@ export function HomePage() {
     void send(input);
   }
 
+  function focusBrain() {
+    brainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => inputRef.current?.focus(), 350);
+  }
+
   return (
     <div className="home">
       <header className="home__top">
@@ -99,7 +107,22 @@ export function HomePage() {
         </div>
       </header>
 
-      <main className="home__main">
+      <div className="home__hero">
+        <CTASection
+          badge="Bold Brain"
+          title={
+            <>
+              Your edge, <br />
+              <span className="text-white/80">explained clearly.</span>
+            </>
+          }
+          description="Ask Bold Brain about setups, risk, and journaling — beginner-clear coaching powered by OpenRouter."
+          ctaLabel="Ask Bold Brain"
+          onCtaClick={focusBrain}
+        />
+      </div>
+
+      <main className="home__main" ref={brainRef} id="brain">
         <div className="home__intro">
           <p className="home__eyebrow">Bold Brain</p>
           <h1 className="home__title">Your trading coach</h1>
@@ -141,6 +164,7 @@ export function HomePage() {
 
           <form className="brain__composer" onSubmit={onSubmit}>
             <input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask Bold Brain…"

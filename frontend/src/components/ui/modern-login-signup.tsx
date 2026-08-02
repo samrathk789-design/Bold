@@ -17,7 +17,12 @@ function routeAfterAuth(user: User) {
   return user.needsUsername || !user.username ? "/username" : "/app";
 }
 
-export default function Component() {
+type LoginProps = {
+  /** Panel-only mode for embedding over a parent background (e.g. dithering waves) */
+  embedded?: boolean;
+};
+
+export default function Component({ embedded = false }: LoginProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<Step>("identify");
@@ -55,6 +60,7 @@ export default function Component() {
   }, []);
 
   useEffect(() => {
+    if (embedded) return;
     let active = true;
     let renderer: any;
     let geometry: any;
@@ -198,7 +204,7 @@ export default function Component() {
       geometry?.dispose();
       material?.dispose();
     };
-  }, []);
+  }, [embedded]);
 
   async function continueWithEmail(e: FormEvent) {
     e.preventDefault();
@@ -339,9 +345,13 @@ export default function Component() {
   );
 
   return (
-    <div className="bold-login">
-      <canvas ref={canvasRef} className="bold-login__canvas" />
-      <div className="bold-login__veil" aria-hidden="true" />
+    <div className={`bold-login${embedded ? " bold-login--embedded" : ""}`}>
+      {!embedded && (
+        <>
+          <canvas ref={canvasRef} className="bold-login__canvas" />
+          <div className="bold-login__veil" aria-hidden="true" />
+        </>
+      )}
 
       <div className="bold-login__panel">
         <div className="bold-login__brand">

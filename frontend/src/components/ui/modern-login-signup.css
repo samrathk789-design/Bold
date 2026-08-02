@@ -292,6 +292,20 @@
   font-size: 0.85rem;
 }
 
+.bold-login--embedded {
+  min-height: auto;
+  height: auto;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+}
+
+.bold-login--embedded .bold-login__panel {
+  width: 100%;
+  max-width: none;
+  animation: bold-panel-in 620ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
 @media (max-width: 480px) {
   .bold-login__panel {
     padding: 1.7rem 1.25rem 1.35rem;
