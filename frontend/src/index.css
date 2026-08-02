@@ -15,6 +15,75 @@
   --font-body: "Manrope", sans-serif;
   --radius: 14px;
   color-scheme: dark;
+
+  /* shadcn semantic tokens (used by ui components) */
+  --background: #f7f4ef;
+  --foreground: #1a1714;
+  --card: #fffdf9;
+  --card-foreground: #1a1714;
+  --popover: #fffdf9;
+  --popover-foreground: #1a1714;
+  --primary: #ec4e02;
+  --primary-foreground: #fffaf5;
+  --secondary: #efe8de;
+  --secondary-foreground: #1a1714;
+  --muted-bg: #efe8de;
+  --muted-foreground: #6b635a;
+  --accent-token: #efe8de;
+  --accent-foreground: #1a1714;
+  --destructive: #dc2626;
+  --border: #e4dcd0;
+  --input: #e4dcd0;
+  --ring: #ec4e02;
+  --radius-token: 0.75rem;
+}
+
+.dark {
+  --background: #071411;
+  --foreground: #f4f7f2;
+  --card: #0c1f1a;
+  --card-foreground: #f4f7f2;
+  --popover: #0c1f1a;
+  --popover-foreground: #f4f7f2;
+  --primary: #ec4e02;
+  --primary-foreground: #fffaf5;
+  --secondary: #143028;
+  --secondary-foreground: #f4f7f2;
+  --muted-bg: #143028;
+  --muted-foreground: #a7b5ad;
+  --accent-token: #143028;
+  --accent-foreground: #f4f7f2;
+  --destructive: #ff7a6e;
+  --border: rgba(244, 247, 242, 0.12);
+  --input: rgba(244, 247, 242, 0.12);
+  --ring: #ec4e02;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted-bg);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent-token);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius-token) - 4px);
+  --radius-md: calc(var(--radius-token) - 2px);
+  --radius-lg: var(--radius-token);
+  --radius-xl: calc(var(--radius-token) + 4px);
+  --font-serif: "Instrument Serif", "Times New Roman", serif;
+  --font-sans: var(--font-body);
 }
 
 *,

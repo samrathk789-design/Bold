@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
+import LoginScreen from "./components/ui/modern-login-signup";
 import DemoOne from "./pages/demo";
 import { HomePage } from "./pages/Home";
 import { UsernamePage } from "./pages/Username";
@@ -20,7 +21,7 @@ function LoginGate() {
     );
   }
   if (user) return <Navigate to={postAuthPath(user)} replace />;
-  return <DemoOne />;
+  return <LoginScreen />;
 }
 
 function RequireAuth({ children }: { children: ReactNode }) {
