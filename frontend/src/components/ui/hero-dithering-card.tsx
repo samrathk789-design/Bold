@@ -15,9 +15,9 @@ export function CTASection() {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="relative overflow-hidden rounded-[48px] border border-border bg-card shadow-sm min-h-[600px] md:min-h-[600px] flex flex-col items-center justify-center duration-500">
-          <Suspense fallback={<div className="absolute inset-0 bg-muted/20" />}>
-            <div className="absolute inset-0 z-0 pointer-events-none opacity-40 dark:opacity-30 mix-blend-multiply dark:mix-blend-screen">
+        <div className="relative overflow-hidden rounded-[48px] border border-white/10 bg-black shadow-sm min-h-[600px] md:min-h-[600px] flex flex-col items-center justify-center duration-500">
+          <Suspense fallback={<div className="absolute inset-0 bg-black" />}>
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-50 mix-blend-screen">
               <Dithering
                 colorBack="#00000000"
                 colorFront="#EC4E02"
@@ -31,7 +31,7 @@ export function CTASection() {
           </Suspense>
 
           <div className="relative z-10 px-6 max-w-4xl mx-auto text-center flex flex-col items-center">
-            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary backdrop-blur-sm">
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary backdrop-blur-sm">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
@@ -39,12 +39,12 @@ export function CTASection() {
               AI-Powered Writing
             </div>
 
-            <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight text-foreground mb-8 leading-[1.05]">
+            <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight text-white mb-8 leading-[1.05]">
               Your words, <br />
-              <span className="text-foreground/80">delivered perfectly.</span>
+              <span className="text-white/80">delivered perfectly.</span>
             </h2>
 
-            <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mb-12 leading-relaxed">
+            <p className="text-white/60 text-lg md:text-xl max-w-2xl mb-12 leading-relaxed">
               Join 2,847 founders using the only AI that understands the nuance of your voice.
               Clean, precise, and uniquely yours.
             </p>
