@@ -292,8 +292,8 @@ export default function Component() {
         const idToken = await credential.user.getIdToken();
         res = await api.firebase(idToken, provider);
       } else if (config?.allowDevOAuth) {
-        // Simulate provider round-trip so the connecting popup is visible
-        await new Promise((r) => setTimeout(r, 700));
+        // Keep the Bold connecting popup on screen long enough to read
+        await new Promise((r) => setTimeout(r, 1400));
         res = await api.oauthDev(
           provider,
           resolveDevEmail(provider),
@@ -306,8 +306,9 @@ export default function Component() {
       }
 
       setOauthPhase("success");
-      await new Promise((r) => setTimeout(r, 900));
+      await new Promise((r) => setTimeout(r, 1100));
       setOauthOpen(false);
+      await new Promise((r) => setTimeout(r, 280));
       finishAuth(res);
     } catch (err) {
       if (isPopupCancelled(err)) {
