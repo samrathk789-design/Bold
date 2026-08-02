@@ -92,6 +92,10 @@ export type CTASectionProps = {
   description?: string
   ctaLabel?: string
   onCtaClick?: () => void
+  /** When set, replaces the default marketing CTA body (e.g. login form) */
+  children?: ReactNode
+  className?: string
+  minHeightClassName?: string
 }
 
 export function CTASection({
@@ -105,66 +109,75 @@ export function CTASection({
   description = "Join 2,847 founders using the only AI that understands the nuance of your voice. Clean, precise, and uniquely yours.",
   ctaLabel = "Start Typing",
   onCtaClick,
+  children,
+  className = "",
+  minHeightClassName = "min-h-[600px] md:min-h-[600px]",
 }: CTASectionProps) {
   const [isHovered, setIsHovered] = useState(false)
 
   return (
-    <section className="py-12 w-full flex justify-center items-center px-4 md:px-6">
+    <section className={`py-8 md:py-12 w-full flex justify-center items-center px-4 md:px-6 ${className}`}>
       <div
         className="w-full max-w-7xl relative"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="relative overflow-hidden rounded-[48px] border border-white/10 bg-black shadow-sm min-h-[600px] md:min-h-[600px] flex flex-col items-center justify-center duration-500">
+        <div
+          className={`relative overflow-hidden rounded-[32px] md:rounded-[48px] border border-white/10 bg-black shadow-sm ${minHeightClassName} flex flex-col items-center justify-center duration-500`}
+        >
           <DitheringWaves interactive={false} boosted={isHovered} />
           <div
             className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-500"
             style={{ opacity: isHovered ? 0.12 : 0, background: ORANGE_MUTED, mixBlendMode: "screen" }}
           />
 
-          <div className="relative z-10 px-6 max-w-4xl mx-auto text-center flex flex-col items-center">
-            <div
-              className="mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium backdrop-blur-sm"
-              style={{
-                borderColor: "rgba(196, 106, 58, 0.22)",
-                background: "rgba(196, 106, 58, 0.08)",
-                color: ORANGE_SOFT,
-              }}
-            >
-              <span className="relative flex h-2 w-2">
-                <span
-                  className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
-                  style={{ background: ORANGE_SOFT }}
-                />
-                <span
-                  className="relative inline-flex rounded-full h-2 w-2"
-                  style={{ background: ORANGE_SOFT }}
-                />
-              </span>
-              {badge}
+          {children ? (
+            <div className="relative z-10 w-full px-4 py-8 md:px-10 md:py-12">{children}</div>
+          ) : (
+            <div className="relative z-10 px-6 max-w-4xl mx-auto text-center flex flex-col items-center">
+              <div
+                className="mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium backdrop-blur-sm"
+                style={{
+                  borderColor: "rgba(196, 106, 58, 0.22)",
+                  background: "rgba(196, 106, 58, 0.08)",
+                  color: ORANGE_SOFT,
+                }}
+              >
+                <span className="relative flex h-2 w-2">
+                  <span
+                    className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+                    style={{ background: ORANGE_SOFT }}
+                  />
+                  <span
+                    className="relative inline-flex rounded-full h-2 w-2"
+                    style={{ background: ORANGE_SOFT }}
+                  />
+                </span>
+                {badge}
+              </div>
+
+              <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight text-white mb-8 leading-[1.05]">
+                {title}
+              </h2>
+
+              <p className="text-white/60 text-lg md:text-xl max-w-2xl mb-12 leading-relaxed">
+                {description}
+              </p>
+
+              <button
+                type="button"
+                onClick={onCtaClick}
+                className="group relative inline-flex h-14 items-center justify-center gap-3 overflow-hidden rounded-full px-12 text-base font-medium text-white transition-all duration-300 hover:scale-105 active:scale-95"
+                style={{
+                  background: ORANGE_MUTED,
+                  boxShadow: isHovered ? "0 0 0 4px rgba(196, 106, 58, 0.18)" : "none",
+                }}
+              >
+                <span className="relative z-10">{ctaLabel}</span>
+                <ArrowRight className="h-5 w-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
+              </button>
             </div>
-
-            <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight text-white mb-8 leading-[1.05]">
-              {title}
-            </h2>
-
-            <p className="text-white/60 text-lg md:text-xl max-w-2xl mb-12 leading-relaxed">
-              {description}
-            </p>
-
-            <button
-              type="button"
-              onClick={onCtaClick}
-              className="group relative inline-flex h-14 items-center justify-center gap-3 overflow-hidden rounded-full px-12 text-base font-medium text-white transition-all duration-300 hover:scale-105 active:scale-95"
-              style={{
-                background: ORANGE_MUTED,
-                boxShadow: isHovered ? "0 0 0 4px rgba(196, 106, 58, 0.18)" : "none",
-              }}
-            >
-              <span className="relative z-10">{ctaLabel}</span>
-              <ArrowRight className="h-5 w-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </section>

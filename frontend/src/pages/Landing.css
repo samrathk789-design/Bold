@@ -1,30 +1,93 @@
 .bold-landing {
   min-height: 100vh;
+  min-height: 100dvh;
   background: #000;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.bold-landing__hero {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.bold-landing__grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+@media (min-width: 980px) {
+  .bold-landing__grid {
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 2.5rem;
+  }
+}
+
+.bold-landing__copy {
+  text-align: left;
+  max-width: 36rem;
+  padding: 0.5rem 0.25rem;
+}
+
+.bold-landing__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid;
+  padding: 0.4rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 550;
+  backdrop-filter: blur(8px);
+  margin-bottom: 1.25rem;
+}
+
+.bold-landing__title {
+  margin: 0 0 1rem;
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
   color: #fff;
 }
 
-.bold-landing__auth {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem 1rem 2rem;
-  overflow: hidden;
+.bold-landing__desc {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  line-height: 1.6;
+  max-width: 34ch;
 }
 
-.bold-landing__auth-inner {
-  position: relative;
-  z-index: 2;
+.bold-landing__login {
   width: 100%;
   max-width: 420px;
+  margin-inline: auto;
 }
 
-.bold-landing__cta {
-  position: relative;
-  z-index: 1;
-  background: #000;
-  padding-bottom: 2rem;
+@media (min-width: 980px) {
+  .bold-landing__login {
+    margin-inline: 0 0;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 979px) {
+  .bold-landing__copy {
+    text-align: center;
+    max-width: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .bold-landing__desc {
+    max-width: 40ch;
+  }
 }
