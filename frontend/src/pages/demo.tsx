@@ -1,6 +1,6 @@
 import LandingPage from "./Landing";
 
-/** Public demo route mirrors the landing (no Bold Brain). */
+/** Showcase route — same combined landing (login + dithering CTA) */
 export default function DemoOne() {
   return <LandingPage />;
 }

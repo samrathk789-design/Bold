@@ -2,9 +2,8 @@ import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
 import LandingPage from "./pages/Landing";
-import LoginPage from "./pages/LoginPage";
-import { AppHome, AppShell } from "./pages/AppShell";
-import { BoldBrainChat } from "./components/BoldBrainChat";
+import DemoOne from "./pages/demo";
+import { HomePage } from "./pages/Home";
 import { UsernamePage } from "./pages/Username";
 
 function postAuthPath(user: { needsUsername?: boolean; username?: string | null }) {
@@ -12,7 +11,7 @@ function postAuthPath(user: { needsUsername?: boolean; username?: string | null 
   return "/app";
 }
 
-function PublicLanding() {
+function LoginGate() {
   const { user, loading } = useAuth();
   if (loading) {
     return (
@@ -34,7 +33,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -47,18 +46,9 @@ function RequireUsernameDone({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   if (user.needsUsername || !user.username) return <Navigate to="/username" replace />;
   return <>{children}</>;
-}
-
-/** Block unauthenticated access to any /app/* including deep links to brain */
-function AuthedApp() {
-  return (
-    <RequireUsernameDone>
-      <AppShell />
-    </RequireUsernameDone>
-  );
 }
 
 export default function App() {
@@ -66,9 +56,9 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<PublicLanding />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/demo" element={<PublicLanding />} />
+          <Route path="/" element={<LoginGate />} />
+          <Route path="/login" element={<LoginGate />} />
+          <Route path="/demo" element={<DemoOne />} />
           <Route
             path="/username"
             element={
@@ -77,12 +67,14 @@ export default function App() {
               </RequireAuth>
             }
           />
-          <Route path="/app" element={<AuthedApp />}>
-            <Route index element={<AppHome />} />
-            <Route path="brain" element={<BoldBrainChat />} />
-          </Route>
-          {/* Old brain URLs — never public */}
-          <Route path="/brain" element={<Navigate to="/app/brain" replace />} />
+          <Route
+            path="/app"
+            element={
+              <RequireUsernameDone>
+                <HomePage />
+              </RequireUsernameDone>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
