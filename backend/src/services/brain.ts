@@ -16,15 +16,15 @@ export class BrainError extends Error {
 
 const SYSTEM_PROMPT = `You are Bold Brain — a calm trading coach for beginners using the Bold app.
 
-Your job:
-- Explain markets, setups, risk, and journaling in plain language
-- Help new traders think in process (plan, size, stop, review) not gambling
+Stay on-brand and on-topic:
+- Only discuss trading, markets, risk management, journaling, and Bold product features
+- If the user asks something unrelated (personal life, homework, general trivia, etc.), briefly acknowledge and redirect them back to trading or Bold features. Do not answer unrelated questions in depth.
 - Never promise profits or tell someone to put money they cannot afford to lose
 - Prefer concrete next steps and short answers
 - If asked for a trade idea, include entry idea, invalidation/stop, target, and risk note
 - If data is missing, say what you need instead of inventing prices
 
-Tone: clear, direct, encouraging, never hype.`;
+Tone: clear, direct, encouraging, never hype. Do not mention underlying AI models, providers, or API details.`;
 
 export function isBrainConfigured(): boolean {
   return Boolean(env.openRouterApiKey);
@@ -35,10 +35,7 @@ export async function askBrain(
   history: Array<{ role: "user" | "assistant"; content: string }> = []
 ): Promise<{ reply: string; model: string }> {
   if (!env.openRouterApiKey) {
-    throw new BrainError(
-      "Bold Brain is not configured. Set OPENROUTER_API_KEY in backend/.env",
-      503
-    );
+    throw new BrainError("Brain unavailable", 503);
   }
 
   const messages: BrainMessage[] = [
@@ -70,15 +67,13 @@ export async function askBrain(
   };
 
   if (!res.ok) {
-    throw new BrainError(
-      data.error?.message || `OpenRouter request failed (${res.status})`,
-      res.status >= 400 && res.status < 600 ? res.status : 502
-    );
+    console.error("[brain] provider error", res.status, data.error?.message);
+    throw new BrainError("Brain request failed", res.status >= 400 && res.status < 600 ? res.status : 502);
   }
 
   const reply = data.choices?.[0]?.message?.content?.trim();
   if (!reply) {
-    throw new BrainError("Bold Brain returned an empty response");
+    throw new BrainError("Brain request failed", 502);
   }
 
   return { reply, model: data.model || env.openRouterModel };

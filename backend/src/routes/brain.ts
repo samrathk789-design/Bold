@@ -3,17 +3,18 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { askBrain, BrainError, isBrainConfigured } from "../services/brain.js";
-import { env } from "../config.js";
 import { recentBrainMessages, saveBrainMessage } from "../db/index.js";
 
 const router = Router();
+
+const CLIENT_ERROR = "Something went wrong — please try again.";
 
 const brainLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many brain requests. Slow down a bit." },
+  message: { error: CLIENT_ERROR },
 });
 
 const chatSchema = z.object({
@@ -29,22 +30,24 @@ const chatSchema = z.object({
     .optional(),
 });
 
-router.get("/status", requireAuth, (_req, res) => {
+/** All brain routes require a valid session — no public/preview access */
+router.use(requireAuth);
+
+router.get("/status", (_req, res) => {
   res.json({
     ready: isBrainConfigured(),
-    model: isBrainConfigured() ? env.openRouterModel : null,
   });
 });
 
-router.get("/history", requireAuth, (req, res) => {
+router.get("/history", (req, res) => {
   const userId = (req as AuthedRequest).userId!;
   res.json({ messages: recentBrainMessages(userId) });
 });
 
-router.post("/chat", requireAuth, brainLimiter, async (req, res) => {
+router.post("/chat", brainLimiter, async (req, res) => {
   const parsed = chatSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
+    return res.status(400).json({ error: CLIENT_ERROR });
   }
 
   const userId = (req as AuthedRequest).userId!;
@@ -54,13 +57,12 @@ router.post("/chat", requireAuth, brainLimiter, async (req, res) => {
     saveBrainMessage(userId, "assistant", reply, model);
     return res.json({
       reply,
-      model,
       userId,
     });
   } catch (err) {
+    console.error("[brain/chat]", err instanceof Error ? err.message : err);
     const status = err instanceof BrainError ? err.status : 500;
-    const message = err instanceof Error ? err.message : "Brain request failed";
-    return res.status(status).json({ error: message });
+    return res.status(status).json({ error: CLIENT_ERROR });
   }
 });
 

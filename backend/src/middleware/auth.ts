@@ -17,9 +17,8 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
     req.userId = userId;
     req.jti = jti;
     next();
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unauthorized";
-    return res.status(401).json({ error: message });
+  } catch {
+    return res.status(401).json({ error: "Authentication required" });
   }
 }
 

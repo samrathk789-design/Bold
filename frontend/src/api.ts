@@ -119,12 +119,12 @@ export const api = {
     }),
   me: () => request<{ user: User }>("/api/auth/me"),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
-  brainStatus: () => request<{ ready: boolean; model: string | null }>("/api/brain/status"),
+  brainStatus: () => request<{ ready: boolean; model?: string | null }>("/api/brain/status"),
   brainChat: (
     message: string,
     history: Array<{ role: "user" | "assistant"; content: string }> = []
   ) =>
-    request<{ reply: string; model: string }>("/api/brain/chat", {
+    request<{ reply: string; model?: string }>("/api/brain/chat", {
       method: "POST",
       body: JSON.stringify({ message, history }),
     }),
