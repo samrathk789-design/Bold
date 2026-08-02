@@ -1,0 +1,14 @@
+{
+  "name": "Bold trader app",
+  "install": "npm run install:all",
+  "terminals": [
+    {
+      "name": "api",
+      "command": "npm run dev:backend"
+    },
+    {
+      "name": "web",
+      "command": "npm run dev:frontend"
+    }
+  ]
+}
