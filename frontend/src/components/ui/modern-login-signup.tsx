@@ -1,53 +1,29 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { api } from "@/api";
-import { useAuth } from "@/auth";
+"use client";
 
-type Step = "identify" | "otp";
+import React, { useEffect, useRef, useState } from "react";
 
-/**
- * Modern login / signup surface with WebGL dot field background.
- * Wired to Bold phone/email OTP + Google (dev) auth.
- */
-export default function ModernLoginSignup() {
+export default function Component() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLogin, setIsLogin] = useState(true);
-  const [channel, setChannel] = useState<"email" | "phone">("email");
-  const [step, setStep] = useState<Step>("identify");
-  const [name, setName] = useState("");
-  const [destination, setDestination] = useState("");
-  const [code, setCode] = useState("");
-  const [challengeId, setChallengeId] = useState("");
-  const [maskedTo, setMaskedTo] = useState("");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { setSession } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => {
     let active = true;
     let renderer: any;
     let geometry: any;
     let material: any;
-    let animationId = 0;
-    let removeResize: (() => void) | undefined;
+    let scene: any;
+    let camera: any;
+    let animationId: number;
 
-    if (!canvasRef.current) return;
-
-    void import("three").then((THREE) => {
-      if (!active || !canvasRef.current) return;
-
-      renderer = new THREE.WebGLRenderer({
-        canvas: canvasRef.current,
-        alpha: true,
-        antialias: false,
-      });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const initThree = (THREE: any) => {
+      if (!canvasRef.current || !active) return;
+      const canvas = canvasRef.current;
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+      renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setSize(window.innerWidth, window.innerHeight);
 
-      const scene = new THREE.Scene();
-      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      scene = new THREE.Scene();
+      camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
       const uniforms = {
         u_time: { value: 0 },
@@ -132,7 +108,7 @@ export default function ModernLoginSignup() {
               fragColor.rgb *= fragColor.a;
           }
         `,
-        uniforms,
+        uniforms: uniforms,
         glslVersion: THREE.GLSL3,
         blending: THREE.CustomBlending,
         blendSrc: THREE.SrcAlphaFactor,
@@ -141,11 +117,12 @@ export default function ModernLoginSignup() {
       });
 
       geometry = new THREE.PlaneGeometry(2, 2);
-      scene.add(new THREE.Mesh(geometry, material));
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
 
       const startTime = performance.now();
       const animate = () => {
-        if (!active || !renderer) return;
+        if (!active) return;
         animationId = requestAnimationFrame(animate);
         uniforms.u_time.value = (performance.now() - startTime) / 1000.0;
         renderer.render(scene, camera);
@@ -153,25 +130,50 @@ export default function ModernLoginSignup() {
       animate();
 
       const handleResize = () => {
-        if (!renderer) return;
         renderer.setSize(window.innerWidth, window.innerHeight);
         uniforms.u_resolution.value.set(window.innerWidth * 2, window.innerHeight * 2);
       };
       window.addEventListener("resize", handleResize);
-      removeResize = () => window.removeEventListener("resize", handleResize);
-    });
+
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    };
+
+    // Dynamically load Three.js via script tag to avoid bundler import errors
+    if ((window as any).THREE) {
+      const cleanUp = initThree((window as any).THREE);
+      return () => {
+        active = false;
+        if (cleanUp) cleanUp();
+        if (animationId) cancelAnimationFrame(animationId);
+        if (renderer) renderer.dispose();
+        if (geometry) geometry.dispose();
+        if (material) material.dispose();
+      };
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+      script.async = true;
+      script.onload = () => {
+        if ((window as any).THREE) {
+          initThree((window as any).THREE);
+        }
+      };
+      document.head.appendChild(script);
+    }
 
     return () => {
       active = false;
-      removeResize?.();
       if (animationId) cancelAnimationFrame(animationId);
-      renderer?.dispose();
-      geometry?.dispose();
-      material?.dispose();
+      if (renderer) renderer.dispose();
+      if (geometry) geometry.dispose();
+      if (material) material.dispose();
     };
   }, []);
 
-  const socialBtn: CSSProperties = {
+  /* ─── shared button styles ─── */
+  const socialBtn: React.CSSProperties = {
     width: "100%",
     padding: "0.65rem",
     borderRadius: 6,
@@ -187,7 +189,7 @@ export default function ModernLoginSignup() {
     gap: "0.5rem",
     marginBottom: "0.4rem",
   };
-  const input: CSSProperties = {
+  const input: React.CSSProperties = {
     width: "100%",
     padding: "0.65rem 0.85rem",
     borderRadius: 6,
@@ -197,110 +199,8 @@ export default function ModernLoginSignup() {
     fontSize: "0.875rem",
     outline: "none",
   };
-  const primaryBtn: CSSProperties = {
-    width: "100%",
-    padding: "0.65rem",
-    borderRadius: 6,
-    border: "none",
-    background: "#ededed",
-    color: "#000",
-    fontWeight: 500,
-    fontSize: "0.875rem",
-    cursor: "pointer",
-  };
 
-  async function startOtp(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await api.startOtp(channel, destination.trim());
-      setChallengeId(res.challengeId);
-      setMaskedTo(res.destination);
-      setPreviewUrl(res.deliveryPreviewUrl ?? null);
-      setStep("otp");
-      setCode("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send OTP");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function verifyOtp(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await api.verifyOtp(challengeId, code.trim());
-      setSession(res.token, res.user);
-      navigate("/app");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Verification failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function continueWithGoogle() {
-    setError(null);
-    setBusy(true);
-    try {
-      const email = (destination.includes("@") ? destination : "trader@gmail.com")
-        .trim()
-        .toLowerCase();
-      const res = await api.google(`dev:${email}`);
-      setSession(res.token, res.user);
-      navigate("/app");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const Logo = (
-    <div
-      style={{
-        background: "#111",
-        width: 44,
-        height: 44,
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontWeight: 700,
-        fontSize: "1.15rem",
-        marginBottom: "0.75rem",
-        border: "1px solid #333",
-      }}
-    >
-      B
-    </div>
-  );
-
-  const Footer = (
-    <div
-      style={{
-        marginTop: "0.85rem",
-        fontSize: "0.75rem",
-        color: "#666",
-        lineHeight: 1.5,
-        textAlign: "center",
-      }}
-    >
-      By proceeding, you agree to Bold&apos;s{" "}
-      <a href="#" style={{ color: "#888" }}>
-        Terms of Service
-      </a>{" "}
-      and{" "}
-      <a href="#" style={{ color: "#888" }}>
-        Privacy Policy
-      </a>
-      .
-    </div>
-  );
-
+  /* ─── Google / GitHub / Apple SVGs ─── */
   const GoogleIcon = (
     <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, flexShrink: 0 }}>
       <path
@@ -321,6 +221,59 @@ export default function ModernLoginSignup() {
       />
     </svg>
   );
+  const GitHubIcon = (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 16, height: 16, flexShrink: 0 }}>
+      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z" />
+    </svg>
+  );
+  const AppleIcon = (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 16, height: 16, flexShrink: 0 }}>
+      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.04 2.26-.79 3.59-.76 1.56.04 2.88.75 3.65 1.89-3.08 1.75-2.58 5.61.35 6.75-1.01 2.37-2.39 4.39-4.29 4.29zM12.03 7.25c-.15-2.23 1.66-4.07 3.72-4.25.36 2.38-1.92 4.34-3.72 4.25z" />
+    </svg>
+  );
+
+  const Logo = (
+    <div
+      style={{
+        background: "#111",
+        width: 44,
+        height: 44,
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 700,
+        fontSize: "1.15rem",
+        marginBottom: "0.75rem",
+        border: "1px solid #333",
+      }}
+    >
+      JS
+    </div>
+  );
+  const Footer = (
+    <div
+      style={{
+        marginTop: "0.85rem",
+        fontSize: "0.75rem",
+        color: "#666",
+        lineHeight: 1.5,
+        textAlign: "center",
+      }}
+    >
+      By proceeding, you agree to creating a Vercel account
+      <br />
+      subject to our{" "}
+      <a href="#" style={{ color: "#888" }}>
+        Terms of Service
+      </a>{" "}
+      and{" "}
+      <a href="#" style={{ color: "#888" }}>
+        Privacy Policy
+      </a>
+      .
+    </div>
+  );
 
   return (
     <div
@@ -337,7 +290,10 @@ export default function ModernLoginSignup() {
         fontFamily: "'Inter',-apple-system,sans-serif",
       }}
     >
+      {/* WebGL Dot canvas */}
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, zIndex: 0 }} />
+
+      {/* Vignette */}
       <div
         style={{
           position: "absolute",
@@ -349,6 +305,7 @@ export default function ModernLoginSignup() {
         }}
       />
 
+      {/* Modal card */}
       <div
         style={{
           position: "relative",
@@ -365,227 +322,184 @@ export default function ModernLoginSignup() {
           border: "1px solid #222",
         }}
       >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 360,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            textAlign: "center",
-          }}
-        >
-          {Logo}
-          <h1
+        {isLogin ? (
+          <div
             style={{
-              fontSize: "1.35rem",
-              fontWeight: 600,
-              marginBottom: "0.25rem",
-              letterSpacing: "-0.025em",
+              width: "100%",
+              maxWidth: 360,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
             }}
           >
-            {step === "otp"
-              ? "Enter OTP"
-              : isLogin
-                ? "Sign in to Bold"
-                : "Sign up for Bold"}
-          </h1>
-          <p
-            style={{
-              fontSize: "0.85rem",
-              color: "#888",
-              marginBottom: "0.85rem",
-              lineHeight: 1.5,
-            }}
-          >
-            {step === "otp"
-              ? `Paste the code sent to ${maskedTo}.`
-              : isLogin
-                ? "Sign in with email, phone, or Google."
-                : "Create a new account to get started."}
-          </p>
+            {Logo}
+            <h1
+              style={{
+                fontSize: "1.35rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+                letterSpacing: "-0.025em",
+              }}
+            >
+              Sign in to Account
+            </h1>
+            <p
+              style={{
+                fontSize: "0.85rem",
+                color: "#888",
+                marginBottom: "0.85rem",
+                lineHeight: 1.5,
+              }}
+            >
+              Sign in to your Account.
+            </p>
 
-          {step === "identify" && (
-            <>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 4,
-                  width: "100%",
-                  marginBottom: "0.75rem",
-                  padding: 4,
-                  borderRadius: 8,
-                  border: "1px solid #333",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setChannel("email")}
-                  style={{
-                    ...socialBtn,
-                    marginBottom: 0,
-                    background: channel === "email" ? "#1f1f1f" : "transparent",
-                    border: "none",
-                  }}
-                >
-                  Email
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setChannel("phone")}
-                  style={{
-                    ...socialBtn,
-                    marginBottom: 0,
-                    background: channel === "phone" ? "#1f1f1f" : "transparent",
-                    border: "none",
-                  }}
-                >
-                  Phone
-                </button>
-              </div>
-
-              <form
-                onSubmit={startOtp}
-                style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.65rem" }}
-              >
-                {!isLogin && (
-                  <input
-                    style={input}
-                    type="text"
-                    placeholder="Full Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                )}
-                <input
-                  style={input}
-                  type={channel === "email" ? "email" : "tel"}
-                  placeholder={
-                    channel === "email" ? "name@work-email.com" : "+91 98765 43210"
-                  }
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  required
-                />
-                <button type="submit" style={primaryBtn} disabled={busy}>
-                  {busy ? "Sending…" : isLogin ? "Continue with OTP" : "Sign Up with OTP"}
-                </button>
-              </form>
-
-              <div style={{ height: 1, background: "#222", width: "100%", margin: "0.85rem 0" }} />
-
-              <button
-                type="button"
-                style={socialBtn}
-                onClick={() => void continueWithGoogle()}
-                disabled={busy}
-              >
-                {GoogleIcon}
-                {isLogin ? "Continue with Google" : "Sign up with Google"}
-              </button>
-
-              <div style={{ marginTop: "1.25rem", fontSize: "0.875rem", color: "#888" }}>
-                {isLogin ? (
-                  <>
-                    Don&apos;t have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => setIsLogin(false)}
-                      style={{
-                        color: "#fff",
-                        fontWeight: 500,
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                        fontSize: "inherit",
-                      }}
-                    >
-                      Sign Up
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Already have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => setIsLogin(true)}
-                      style={{
-                        color: "#fff",
-                        fontWeight: 500,
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                        fontSize: "inherit",
-                      }}
-                    >
-                      Sign In
-                    </button>
-                  </>
-                )}
-              </div>
-              {Footer}
-            </>
-          )}
-
-          {step === "otp" && (
             <form
-              onSubmit={verifyOtp}
+              onSubmit={(e) => e.preventDefault()}
               style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.65rem" }}
             >
-              <input
-                style={input}
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="Paste 6-digit OTP"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                required
-              />
-              {previewUrl && (
-                <a
-                  href={previewUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: "#ededed", fontSize: "0.85rem" }}
-                >
-                  Open email to copy your OTP
-                </a>
-              )}
-              <button type="submit" style={primaryBtn} disabled={busy || code.length < 4}>
-                {busy ? "Verifying…" : "Verify & enter"}
-              </button>
+              <input style={input} type="email" placeholder="name@work-email.com" required />
               <button
-                type="button"
-                onClick={() => {
-                  setStep("identify");
-                  setCode("");
-                  setPreviewUrl(null);
-                  setError(null);
-                }}
+                type="submit"
                 style={{
-                  ...socialBtn,
-                  marginBottom: 0,
-                  marginTop: "0.25rem",
+                  width: "100%",
+                  padding: "0.65rem",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "#ededed",
+                  color: "#000",
+                  fontWeight: 500,
+                  fontSize: "0.875rem",
+                  cursor: "pointer",
                 }}
               >
-                Change email or phone
+                Continue with Email
               </button>
             </form>
-          )}
 
-          {error && (
-            <p style={{ marginTop: "0.85rem", color: "#ff7a6e", fontSize: "0.85rem" }} role="alert">
-              {error}
+            <div style={{ height: 1, background: "#222", width: "100%", margin: "0.85rem 0" }} />
+
+            <button style={socialBtn}>
+              {GoogleIcon}Continue with Google
+            </button>
+            <button style={socialBtn}>
+              {GitHubIcon}Continue with GitHub
+            </button>
+            <button style={{ ...socialBtn, marginBottom: 0 }}>
+              {AppleIcon}Continue with Apple
+            </button>
+
+            <div style={{ marginTop: "1.25rem", fontSize: "0.875rem", color: "#888" }}>
+              Don&apos;t have an account?{" "}
+              <button
+                onClick={() => setIsLogin(false)}
+                style={{
+                  color: "#fff",
+                  fontWeight: 500,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: "inherit",
+                }}
+              >
+                Sign Up
+              </button>
+            </div>
+            {Footer}
+          </div>
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 360,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+            }}
+          >
+            {Logo}
+            <h1
+              style={{
+                fontSize: "1.35rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+                letterSpacing: "-0.025em",
+              }}
+            >
+              Sign up for Account
+            </h1>
+            <p
+              style={{
+                fontSize: "0.85rem",
+                color: "#888",
+                marginBottom: "0.85rem",
+                lineHeight: 1.5,
+              }}
+            >
+              Create a new account to get started.
             </p>
-          )}
-        </div>
+
+            <form
+              onSubmit={(e) => e.preventDefault()}
+              style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.65rem" }}
+            >
+              <input style={input} type="text" placeholder="Full Name" required />
+              <input style={input} type="email" placeholder="name@work-email.com" required />
+              <button
+                type="submit"
+                style={{
+                  width: "100%",
+                  padding: "0.65rem",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "#ededed",
+                  color: "#000",
+                  fontWeight: 500,
+                  fontSize: "0.875rem",
+                  cursor: "pointer",
+                }}
+              >
+                Sign Up with Email
+              </button>
+            </form>
+
+            <div style={{ height: 1, background: "#222", width: "100%", margin: "0.85rem 0" }} />
+
+            <button style={socialBtn}>
+              {GoogleIcon}Sign up with Google
+            </button>
+            <button style={socialBtn}>
+              {GitHubIcon}Sign up with GitHub
+            </button>
+            <button style={{ ...socialBtn, marginBottom: 0 }}>
+              {AppleIcon}Sign up with Apple
+            </button>
+
+            <div style={{ marginTop: "1.25rem", fontSize: "0.875rem", color: "#888" }}>
+              Already have an account?{" "}
+              <button
+                onClick={() => setIsLogin(true)}
+                style={{
+                  color: "#fff",
+                  fontWeight: 500,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: "inherit",
+                }}
+              >
+                Sign In
+              </button>
+            </div>
+            {Footer}
+          </div>
+        )}
       </div>
     </div>
   );
