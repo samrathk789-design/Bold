@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   --bg: #071411;
   --bg-elevated: #0c1f1a;
@@ -12,7 +14,6 @@
   --font-display: "Syne", sans-serif;
   --font-body: "Manrope", sans-serif;
   --radius: 14px;
-  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   color-scheme: dark;
 }
 
@@ -100,28 +101,16 @@ input {
   font-weight: 700;
 }
 
-.btn--primary:hover {
-  filter: brightness(1.05);
-}
-
 .btn--ghost {
   background: transparent;
   border-color: var(--line);
   color: var(--ink);
 }
 
-.btn--ghost:hover {
-  border-color: rgba(244, 247, 242, 0.35);
-}
-
 .btn--text {
   background: transparent;
   color: var(--muted);
   padding-inline: 0.4rem;
-}
-
-.btn--text:hover {
-  color: var(--ink);
 }
 
 .btn--block {
