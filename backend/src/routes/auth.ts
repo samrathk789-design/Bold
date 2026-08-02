@@ -66,7 +66,10 @@ router.post("/otp/verify", (req, res) => {
   }
 
   const user = findOrCreateUserFromOtp(result.channel, result.destination);
-  const { token, expiresAt } = issueToken(user);
+  const { token, expiresAt } = issueToken(user, {
+    userAgent: req.get("user-agent") ?? undefined,
+    ip: req.ip,
+  });
   return res.json({
     token,
     expiresAt,
@@ -81,7 +84,10 @@ router.post("/google", async (req, res) => {
   }
   try {
     const user = await findOrCreateUserFromGoogle(parsed.data.idToken);
-    const { token, expiresAt } = issueToken(user);
+    const { token, expiresAt } = issueToken(user, {
+      userAgent: req.get("user-agent") ?? undefined,
+      ip: req.ip,
+    });
     return res.json({ token, expiresAt, user: publicUser(user) });
   } catch (err) {
     const status = (err as { status?: number }).status ?? 500;
@@ -107,7 +113,8 @@ router.get("/config", (_req, res) => {
   );
   res.json({
     googleClientId: env.googleClientId || null,
-    googleEnabled: Boolean(env.googleClientId) || env.isDev,
+    googleEnabled: Boolean(env.googleClientId),
+    googleMode: env.googleClientId ? "gis" : env.isDev ? "dev" : "off",
     otpLength: env.otpLength,
     otpTtlSeconds: env.otpTtlSeconds,
     exposeOtp: env.exposeOtp,
@@ -119,8 +126,11 @@ router.get("/config", (_req, res) => {
     emailSetupHint: env.resendApiKey || (env.smtpHost && env.smtpUser && env.smtpPass)
       ? null
       : "Dev mode uses an email preview link. For real Gmail delivery set RESEND_API_KEY or SMTP_* in backend/.env.",
+    googleSetupHint: env.googleClientId
+      ? null
+      : "Add GOOGLE_CLIENT_ID (Google Cloud → APIs & Services → Credentials → OAuth 2.0 Web client). Authorized JS origins: http://localhost:5173",
     devGoogleHint: env.isDev && !env.googleClientId
-      ? "Use Continue with Google (dev) or send idToken as 'dev:you@gmail.com'"
+      ? "Dev mode: Continue with Google accepts a Gmail address without GIS."
       : null,
   });
 });

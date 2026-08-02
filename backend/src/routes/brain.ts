@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { askBrain, BrainError, isBrainConfigured } from "../services/brain.js";
 import { env } from "../config.js";
+import { recentBrainMessages, saveBrainMessage } from "../db/index.js";
 
 const router = Router();
 
@@ -35,18 +36,26 @@ router.get("/status", requireAuth, (_req, res) => {
   });
 });
 
+router.get("/history", requireAuth, (req, res) => {
+  const userId = (req as AuthedRequest).userId!;
+  res.json({ messages: recentBrainMessages(userId) });
+});
+
 router.post("/chat", requireAuth, brainLimiter, async (req, res) => {
   const parsed = chatSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
   }
 
+  const userId = (req as AuthedRequest).userId!;
   try {
+    saveBrainMessage(userId, "user", parsed.data.message);
     const { reply, model } = await askBrain(parsed.data.message, parsed.data.history ?? []);
+    saveBrainMessage(userId, "assistant", reply, model);
     return res.json({
       reply,
       model,
-      userId: (req as AuthedRequest).userId,
+      userId,
     });
   } catch (err) {
     const status = err instanceof BrainError ? err.status : 500;

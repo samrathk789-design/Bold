@@ -1,19 +1,40 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { api, type AuthConfig } from "@/api";
+import { useAuth } from "@/auth";
+import { renderGoogleButton, startGoogleSignIn } from "@/lib/google";
+
+type Step = "identify" | "otp";
 
 export default function Component() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
   const [isLogin, setIsLogin] = useState(true);
+  const [step, setStep] = useState<Step>("identify");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [challengeId, setChallengeId] = useState("");
+  const [maskedTo, setMaskedTo] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [config, setConfig] = useState<AuthConfig | null>(null);
+  const { setSession } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    void api.authConfig().then(setConfig).catch(() => setConfig(null));
+  }, []);
 
   useEffect(() => {
     let active = true;
     let renderer: any;
     let geometry: any;
     let material: any;
-    let scene: any;
-    let camera: any;
-    let animationId: number;
+    let animationId = 0;
 
     const initThree = (THREE: any) => {
       if (!canvasRef.current || !active) return;
@@ -22,8 +43,8 @@ export default function Component() {
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setSize(window.innerWidth, window.innerHeight);
 
-      scene = new THREE.Scene();
-      camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const scene = new THREE.Scene();
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
       const uniforms = {
         u_time: { value: 0 },
@@ -60,7 +81,6 @@ export default function Component() {
         fragmentShader: `
           precision mediump float;
           in vec2 fragCoord;
-
           uniform float u_time;
           uniform float u_opacities[10];
           uniform vec3 u_colors[6];
@@ -68,47 +88,36 @@ export default function Component() {
           uniform float u_dot_size;
           uniform vec2 u_resolution;
           uniform int u_reverse;
-
           out vec4 fragColor;
-
           float PHI = 1.61803398874989484820459;
           float random(vec2 xy) {
               return fract(tan(distance(xy * PHI, xy) * 0.5) * xy.x);
           }
-
           void main() {
               vec2 st = fragCoord.xy;
               st.x -= abs(floor((mod(u_resolution.x, u_total_size) - u_dot_size) * 0.5));
               st.y -= abs(floor((mod(u_resolution.y, u_total_size) - u_dot_size) * 0.5));
-
               float opacity = step(0.0, st.x) * step(0.0, st.y);
-
               vec2 st2 = vec2(int(st.x / u_total_size), int(st.y / u_total_size));
-
               float frequency = 5.0;
               float show_offset = random(st2);
               float rand = random(st2 * floor((u_time / frequency) + show_offset + frequency));
               opacity *= u_opacities[int(rand * 10.0)];
               opacity *= 1.0 - step(u_dot_size / u_total_size, fract(st.x / u_total_size));
               opacity *= 1.0 - step(u_dot_size / u_total_size, fract(st.y / u_total_size));
-
               vec3 color = u_colors[int(show_offset * 6.0)];
-
               float animation_speed_factor = 3.0;
               vec2 center_grid = u_resolution / 2.0 / u_total_size;
               float dist_from_center = distance(center_grid, st2);
-
               float timing_offset_intro = dist_from_center * 0.01 + (random(st2) * 0.15);
-
               float current_timing_offset = timing_offset_intro;
               opacity *= step(current_timing_offset, u_time * animation_speed_factor);
               opacity *= clamp((1.0 - step(current_timing_offset + 0.1, u_time * animation_speed_factor)) * 1.25, 1.0, 1.25);
-
               fragColor = vec4(color, opacity);
               fragColor.rgb *= fragColor.a;
           }
         `,
-        uniforms: uniforms,
+        uniforms,
         glslVersion: THREE.GLSL3,
         blending: THREE.CustomBlending,
         blendSrc: THREE.SrcAlphaFactor,
@@ -117,8 +126,7 @@ export default function Component() {
       });
 
       geometry = new THREE.PlaneGeometry(2, 2);
-      const mesh = new THREE.Mesh(geometry, material);
-      scene.add(mesh);
+      scene.add(new THREE.Mesh(geometry, material));
 
       const startTime = performance.now();
       const animate = () => {
@@ -134,45 +142,42 @@ export default function Component() {
         uniforms.u_resolution.value.set(window.innerWidth * 2, window.innerHeight * 2);
       };
       window.addEventListener("resize", handleResize);
-
-      return () => {
-        window.removeEventListener("resize", handleResize);
-      };
+      return () => window.removeEventListener("resize", handleResize);
     };
 
-    // Dynamically load Three.js via script tag to avoid bundler import errors
-    if ((window as any).THREE) {
-      const cleanUp = initThree((window as any).THREE);
-      return () => {
-        active = false;
-        if (cleanUp) cleanUp();
-        if (animationId) cancelAnimationFrame(animationId);
-        if (renderer) renderer.dispose();
-        if (geometry) geometry.dispose();
-        if (material) material.dispose();
-      };
-    } else {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
-      script.async = true;
-      script.onload = () => {
-        if ((window as any).THREE) {
-          initThree((window as any).THREE);
-        }
-      };
-      document.head.appendChild(script);
-    }
+    void import("three").then((THREE) => {
+      if (!active) return;
+      initThree(THREE);
+    });
 
     return () => {
       active = false;
       if (animationId) cancelAnimationFrame(animationId);
-      if (renderer) renderer.dispose();
-      if (geometry) geometry.dispose();
-      if (material) material.dispose();
+      renderer?.dispose();
+      geometry?.dispose();
+      material?.dispose();
     };
   }, []);
 
-  /* ─── shared button styles ─── */
+  useEffect(() => {
+    if (!config?.googleClientId || !googleBtnRef.current || step !== "identify") return;
+    void renderGoogleButton(googleBtnRef.current, config.googleClientId, async (idToken) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const res = await api.google(idToken);
+        setSession(res.token, res.user);
+        navigate("/app");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Google sign-in failed");
+      } finally {
+        setBusy(false);
+      }
+    }).catch((err) => {
+      setError(err instanceof Error ? err.message : "Could not load Google Sign-In");
+    });
+  }, [config?.googleClientId, step, setSession, navigate]);
+
   const socialBtn: React.CSSProperties = {
     width: "100%",
     padding: "0.65rem",
@@ -199,8 +204,78 @@ export default function Component() {
     fontSize: "0.875rem",
     outline: "none",
   };
+  const primaryBtn: React.CSSProperties = {
+    width: "100%",
+    padding: "0.65rem",
+    borderRadius: 6,
+    border: "none",
+    background: "#ededed",
+    color: "#000",
+    fontWeight: 500,
+    fontSize: "0.875rem",
+    cursor: "pointer",
+  };
 
-  /* ─── Google / GitHub / Apple SVGs ─── */
+  async function continueWithEmail(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const dest = email.trim().toLowerCase();
+      if (!dest.includes("@")) throw new Error("Enter a valid email (Gmail works great)");
+      const res = await api.startOtp("email", dest);
+      setChallengeId(res.challengeId);
+      setMaskedTo(res.destination);
+      setPreviewUrl(res.deliveryPreviewUrl ?? null);
+      setStep("otp");
+      setCode("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send OTP");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyOtp(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await api.verifyOtp(challengeId, code.trim());
+      setSession(res.token, res.user);
+      navigate("/app");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGoogleClick() {
+    setError(null);
+    setBusy(true);
+    try {
+      if (config?.googleClientId) {
+        await startGoogleSignIn(config.googleClientId, async (idToken) => {
+          const res = await api.google(idToken);
+          setSession(res.token, res.user);
+          navigate("/app");
+        });
+        setBusy(false);
+        return;
+      }
+      // Dev / no GIS: treat Continue with Google as Gmail OTP or dev token
+      const gmail = email.trim().toLowerCase() || "trader@gmail.com";
+      if (!gmail.includes("@")) throw new Error("Enter your Gmail above, then tap Continue with Google");
+      const res = await api.google(`dev:${gmail}`);
+      setSession(res.token, res.user);
+      navigate("/app");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed");
+      setBusy(false);
+    }
+  }
+
   const GoogleIcon = (
     <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, flexShrink: 0 }}>
       <path
@@ -221,16 +296,6 @@ export default function Component() {
       />
     </svg>
   );
-  const GitHubIcon = (
-    <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 16, height: 16, flexShrink: 0 }}>
-      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z" />
-    </svg>
-  );
-  const AppleIcon = (
-    <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 16, height: 16, flexShrink: 0 }}>
-      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.04 2.26-.79 3.59-.76 1.56.04 2.88.75 3.65 1.89-3.08 1.75-2.58 5.61.35 6.75-1.01 2.37-2.39 4.39-4.29 4.29zM12.03 7.25c-.15-2.23 1.66-4.07 3.72-4.25.36 2.38-1.92 4.34-3.72 4.25z" />
-    </svg>
-  );
 
   const Logo = (
     <div
@@ -248,9 +313,10 @@ export default function Component() {
         border: "1px solid #333",
       }}
     >
-      JS
+      B
     </div>
   );
+
   const Footer = (
     <div
       style={{
@@ -261,9 +327,7 @@ export default function Component() {
         textAlign: "center",
       }}
     >
-      By proceeding, you agree to creating a Vercel account
-      <br />
-      subject to our{" "}
+      By proceeding, you agree to Bold&apos;s{" "}
       <a href="#" style={{ color: "#888" }}>
         Terms of Service
       </a>{" "}
@@ -290,10 +354,7 @@ export default function Component() {
         fontFamily: "'Inter',-apple-system,sans-serif",
       }}
     >
-      {/* WebGL Dot canvas */}
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, zIndex: 0 }} />
-
-      {/* Vignette */}
       <div
         style={{
           position: "absolute",
@@ -305,7 +366,6 @@ export default function Component() {
         }}
       />
 
-      {/* Modal card */}
       <div
         style={{
           position: "relative",
@@ -322,184 +382,180 @@ export default function Component() {
           border: "1px solid #222",
         }}
       >
-        {isLogin ? (
-          <div
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 360,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+          }}
+        >
+          {Logo}
+          <h1
             style={{
-              width: "100%",
-              maxWidth: 360,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              textAlign: "center",
+              fontSize: "1.35rem",
+              fontWeight: 600,
+              marginBottom: "0.25rem",
+              letterSpacing: "-0.025em",
             }}
           >
-            {Logo}
-            <h1
-              style={{
-                fontSize: "1.35rem",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-                letterSpacing: "-0.025em",
-              }}
-            >
-              Sign in to Account
-            </h1>
-            <p
-              style={{
-                fontSize: "0.85rem",
-                color: "#888",
-                marginBottom: "0.85rem",
-                lineHeight: 1.5,
-              }}
-            >
-              Sign in to your Account.
-            </p>
+            {step === "otp"
+              ? "Check your Gmail"
+              : isLogin
+                ? "Sign in to Bold"
+                : "Sign up for Bold"}
+          </h1>
+          <p style={{ fontSize: "0.85rem", color: "#888", marginBottom: "0.85rem", lineHeight: 1.5 }}>
+            {step === "otp"
+              ? `Paste the OTP sent to ${maskedTo}`
+              : "Continue with Gmail OTP or Google."}
+          </p>
 
+          {step === "identify" && (
+            <>
+              <form
+                onSubmit={continueWithEmail}
+                style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.65rem" }}
+              >
+                {!isLogin && (
+                  <input
+                    style={input}
+                    type="text"
+                    placeholder="Full Name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                )}
+                <input
+                  style={input}
+                  type="email"
+                  placeholder="name@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                />
+                <button type="submit" style={primaryBtn} disabled={busy}>
+                  {busy ? "Sending…" : isLogin ? "Continue with Email OTP" : "Sign Up with Email OTP"}
+                </button>
+              </form>
+
+              <div style={{ height: 1, background: "#222", width: "100%", margin: "0.85rem 0" }} />
+
+              {config?.googleClientId ? (
+                <div ref={googleBtnRef} style={{ width: "100%", display: "flex", justifyContent: "center" }} />
+              ) : (
+                <button type="button" style={socialBtn} onClick={() => void handleGoogleClick()} disabled={busy}>
+                  {GoogleIcon}
+                  Continue with Google
+                </button>
+              )}
+
+              {config?.googleSetupHint && (
+                <p style={{ marginTop: "0.65rem", fontSize: "0.75rem", color: "#666", lineHeight: 1.4 }}>
+                  {config.googleSetupHint}
+                </p>
+              )}
+              {config?.devGoogleHint && (
+                <p style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "#666", lineHeight: 1.4 }}>
+                  {config.devGoogleHint}
+                </p>
+              )}
+
+              <div style={{ marginTop: "1.25rem", fontSize: "0.875rem", color: "#888" }}>
+                {isLogin ? (
+                  <>
+                    Don&apos;t have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setIsLogin(false)}
+                      style={{
+                        color: "#fff",
+                        fontWeight: 500,
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontSize: "inherit",
+                      }}
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setIsLogin(true)}
+                      style={{
+                        color: "#fff",
+                        fontWeight: 500,
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontSize: "inherit",
+                      }}
+                    >
+                      Sign In
+                    </button>
+                  </>
+                )}
+              </div>
+              {Footer}
+            </>
+          )}
+
+          {step === "otp" && (
             <form
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={verifyOtp}
               style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.65rem" }}
             >
-              <input style={input} type="email" placeholder="name@work-email.com" required />
+              <input
+                style={input}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="Paste OTP from Gmail"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                required
+              />
+              {previewUrl && (
+                <a href={previewUrl} target="_blank" rel="noreferrer" style={{ color: "#ededed", fontSize: "0.85rem" }}>
+                  Open email preview to copy OTP
+                </a>
+              )}
+              <button type="submit" style={primaryBtn} disabled={busy || code.length < 4}>
+                {busy ? "Verifying…" : "Verify & enter"}
+              </button>
               <button
-                type="submit"
-                style={{
-                  width: "100%",
-                  padding: "0.65rem",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "#ededed",
-                  color: "#000",
-                  fontWeight: 500,
-                  fontSize: "0.875rem",
-                  cursor: "pointer",
+                type="button"
+                style={{ ...socialBtn, marginBottom: 0 }}
+                onClick={() => {
+                  setStep("identify");
+                  setCode("");
+                  setPreviewUrl(null);
+                  setError(null);
                 }}
               >
-                Continue with Email
+                Use a different email
               </button>
             </form>
+          )}
 
-            <div style={{ height: 1, background: "#222", width: "100%", margin: "0.85rem 0" }} />
-
-            <button style={socialBtn}>
-              {GoogleIcon}Continue with Google
-            </button>
-            <button style={socialBtn}>
-              {GitHubIcon}Continue with GitHub
-            </button>
-            <button style={{ ...socialBtn, marginBottom: 0 }}>
-              {AppleIcon}Continue with Apple
-            </button>
-
-            <div style={{ marginTop: "1.25rem", fontSize: "0.875rem", color: "#888" }}>
-              Don&apos;t have an account?{" "}
-              <button
-                onClick={() => setIsLogin(false)}
-                style={{
-                  color: "#fff",
-                  fontWeight: 500,
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  fontSize: "inherit",
-                }}
-              >
-                Sign Up
-              </button>
-            </div>
-            {Footer}
-          </div>
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 360,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              textAlign: "center",
-            }}
-          >
-            {Logo}
-            <h1
-              style={{
-                fontSize: "1.35rem",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-                letterSpacing: "-0.025em",
-              }}
-            >
-              Sign up for Account
-            </h1>
-            <p
-              style={{
-                fontSize: "0.85rem",
-                color: "#888",
-                marginBottom: "0.85rem",
-                lineHeight: 1.5,
-              }}
-            >
-              Create a new account to get started.
+          {error && (
+            <p style={{ marginTop: "0.85rem", color: "#ff7a6e", fontSize: "0.85rem" }} role="alert">
+              {error}
             </p>
-
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.65rem" }}
-            >
-              <input style={input} type="text" placeholder="Full Name" required />
-              <input style={input} type="email" placeholder="name@work-email.com" required />
-              <button
-                type="submit"
-                style={{
-                  width: "100%",
-                  padding: "0.65rem",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "#ededed",
-                  color: "#000",
-                  fontWeight: 500,
-                  fontSize: "0.875rem",
-                  cursor: "pointer",
-                }}
-              >
-                Sign Up with Email
-              </button>
-            </form>
-
-            <div style={{ height: 1, background: "#222", width: "100%", margin: "0.85rem 0" }} />
-
-            <button style={socialBtn}>
-              {GoogleIcon}Sign up with Google
-            </button>
-            <button style={socialBtn}>
-              {GitHubIcon}Sign up with GitHub
-            </button>
-            <button style={{ ...socialBtn, marginBottom: 0 }}>
-              {AppleIcon}Sign up with Apple
-            </button>
-
-            <div style={{ marginTop: "1.25rem", fontSize: "0.875rem", color: "#888" }}>
-              Already have an account?{" "}
-              <button
-                onClick={() => setIsLogin(true)}
-                style={{
-                  color: "#fff",
-                  fontWeight: 500,
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  fontSize: "inherit",
-                }}
-              >
-                Sign In
-              </button>
-            </div>
-            {Footer}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

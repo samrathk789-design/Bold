@@ -13,6 +13,7 @@ export type User = {
 export type AuthConfig = {
   googleClientId: string | null;
   googleEnabled: boolean;
+  googleMode?: "gis" | "dev" | "off";
   otpLength: number;
   otpTtlSeconds: number;
   exposeOtp: boolean;
@@ -20,6 +21,7 @@ export type AuthConfig = {
   emailReady: boolean;
   smsSetupHint: string | null;
   emailSetupHint: string | null;
+  googleSetupHint?: string | null;
   devGoogleHint: string | null;
 };
 
