@@ -146,6 +146,12 @@ const migrations: Migration[] = [
       -- SQLite lacks IF NOT EXISTS for columns; use try/catch in runner.
     `,
   },
+  {
+    id: "005_oauth_username",
+    sql: `
+      -- username + auth_method added via addColumnIfMissing in migrate()
+    `,
+  },
 ];
 
 function ensureMigrationsTable() {
@@ -183,6 +189,16 @@ export function migrate() {
         addColumnIfMissing("sessions", "user_agent", "TEXT");
         addColumnIfMissing("sessions", "ip", "TEXT");
         addColumnIfMissing("sessions", "revoked_at", "TEXT");
+      } else if (m.id === "005_oauth_username") {
+        addColumnIfMissing("users", "username", "TEXT");
+        addColumnIfMissing("users", "auth_method", "TEXT");
+        addColumnIfMissing("users", "apple_id", "TEXT");
+        addColumnIfMissing("users", "github_id", "TEXT");
+        addColumnIfMissing("users", "firebase_uid", "TEXT");
+        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL`);
+        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_firebase ON users(firebase_uid) WHERE firebase_uid IS NOT NULL`);
+        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_apple ON users(apple_id) WHERE apple_id IS NOT NULL`);
+        db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github ON users(github_id) WHERE github_id IS NOT NULL`);
       } else if (m.sql.trim()) {
         db.exec(m.sql);
       }

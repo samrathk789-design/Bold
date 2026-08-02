@@ -53,7 +53,9 @@ export function HomePage() {
 
   if (!user) return <Navigate to="/" replace />;
 
-  const identity = user.name || user.email || user.phone || "there";
+  const identity = user.username
+    ? `@${user.username}`
+    : user.name || user.email || user.phone || "there";
 
   async function send(text: string) {
     const message = text.trim();

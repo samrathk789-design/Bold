@@ -2,15 +2,22 @@
 
 import React, { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, type AuthConfig } from "@/api";
+import { api, type AuthConfig, type AuthSession, type OAuthProvider, type User } from "@/api";
 import { useAuth } from "@/auth";
-import { renderGoogleButton, startGoogleSignIn } from "@/lib/google";
+import {
+  AuthConnectingPopup,
+  type AuthPopupPhase,
+} from "@/components/ui/AuthConnectingPopup";
+import { initFirebase, isPopupCancelled, signInWithProvider } from "@/lib/firebase";
 
 type Step = "identify" | "otp";
 
+function routeAfterAuth(user: User) {
+  return user.needsUsername || !user.username ? "/username" : "/app";
+}
+
 export default function Component() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const googleBtnRef = useRef<HTMLDivElement>(null);
   const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<Step>("identify");
   const [fullName, setFullName] = useState("");
@@ -22,13 +29,29 @@ export default function Component() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<AuthConfig | null>(null);
+  const [oauthOpen, setOauthOpen] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState<OAuthProvider>("google");
+  const [oauthPhase, setOauthPhase] = useState<AuthPopupPhase>("connecting");
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const oauthInFlight = useRef(false);
   const { setSession } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    void api.authConfig().then(setConfig).catch(() => setConfig(null));
+    void api
+      .authConfig()
+      .then((cfg) => {
+        setConfig(cfg);
+        if (cfg.firebaseReady && cfg.firebase) {
+          try {
+            initFirebase(cfg.firebase);
+          } catch {
+            /* ignore init errors until button tap */
+          }
+        }
+      })
+      .catch(() => setConfig(null));
   }, []);
-
   useEffect(() => {
     let active = true;
     let renderer: any;
@@ -159,25 +182,6 @@ export default function Component() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!config?.googleClientId || !googleBtnRef.current || step !== "identify") return;
-    void renderGoogleButton(googleBtnRef.current, config.googleClientId, async (idToken) => {
-      setBusy(true);
-      setError(null);
-      try {
-        const res = await api.google(idToken);
-        setSession(res.token, res.user);
-        navigate("/app");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Google sign-in failed");
-      } finally {
-        setBusy(false);
-      }
-    }).catch((err) => {
-      setError(err instanceof Error ? err.message : "Could not load Google Sign-In");
-    });
-  }, [config?.googleClientId, step, setSession, navigate]);
-
   const socialBtn: React.CSSProperties = {
     width: "100%",
     padding: "0.65rem",
@@ -242,8 +246,7 @@ export default function Component() {
     setBusy(true);
     try {
       const res = await api.verifyOtp(challengeId, code.trim());
-      setSession(res.token, res.user);
-      navigate("/app");
+      finishAuth(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
     } finally {
@@ -251,28 +254,72 @@ export default function Component() {
     }
   }
 
-  async function handleGoogleClick() {
+  function finishAuth(res: AuthSession) {
+    setSession(res.token, res.user);
+    navigate(routeAfterAuth(res.user));
+  }
+
+  function dismissOauthPopup() {
+    setOauthOpen(false);
+    setOauthPhase("connecting");
+    setOauthError(null);
+    oauthInFlight.current = false;
+    setBusy(false);
+  }
+
+  function resolveDevEmail(provider: OAuthProvider) {
+    const typed = email.trim().toLowerCase();
+    if (typed.includes("@")) return typed;
+    return `dev.${provider}@bold.local`;
+  }
+
+  async function completeProviderSignIn(provider: OAuthProvider) {
+    if (oauthInFlight.current) return;
+    oauthInFlight.current = true;
     setError(null);
+    setOauthProvider(provider);
+    setOauthPhase("connecting");
+    setOauthError(null);
+    setOauthOpen(true);
     setBusy(true);
+
     try {
-      if (config?.googleClientId) {
-        await startGoogleSignIn(config.googleClientId, async (idToken) => {
-          const res = await api.google(idToken);
-          setSession(res.token, res.user);
-          navigate("/app");
-        });
-        setBusy(false);
+      let res: AuthSession;
+
+      if (config?.firebaseReady && config.firebase) {
+        initFirebase(config.firebase);
+        const credential = await signInWithProvider(provider);
+        const idToken = await credential.user.getIdToken();
+        res = await api.firebase(idToken, provider);
+      } else if (config?.allowDevOAuth) {
+        // Simulate provider round-trip so the connecting popup is visible
+        await new Promise((r) => setTimeout(r, 700));
+        res = await api.oauthDev(
+          provider,
+          resolveDevEmail(provider),
+          fullName.trim() || undefined
+        );
+      } else {
+        throw new Error(
+          "Provider sign-in is not configured. Add Firebase credentials in backend/.env."
+        );
+      }
+
+      setOauthPhase("success");
+      await new Promise((r) => setTimeout(r, 900));
+      setOauthOpen(false);
+      finishAuth(res);
+    } catch (err) {
+      if (isPopupCancelled(err)) {
+        dismissOauthPopup();
         return;
       }
-      // Dev / no GIS: treat Continue with Google as Gmail OTP or dev token
-      const gmail = email.trim().toLowerCase() || "trader@gmail.com";
-      if (!gmail.includes("@")) throw new Error("Enter your Gmail above, then tap Continue with Google");
-      const res = await api.google(`dev:${gmail}`);
-      setSession(res.token, res.user);
-      navigate("/app");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
+      setOauthPhase("error");
+      setOauthError(
+        err instanceof Error ? err.message : "That didn't go through — want to try again?"
+      );
       setBusy(false);
+      oauthInFlight.current = false;
     }
   }
 
@@ -294,6 +341,18 @@ export default function Component() {
         fill="#EA4335"
         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
       />
+    </svg>
+  );
+
+  const AppleIcon = (
+    <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, flexShrink: 0 }} fill="#fff">
+      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.04 2.26-.79 3.59-.76 1.56.04 2.88.75 3.65 1.89-3.08 1.75-2.58 5.61.35 6.75-1.01 2.37-2.39 4.39-4.29 4.29zM12.03 7.25c-.15-2.23 1.66-4.07 3.72-4.25.36 2.38-1.92 4.34-3.72 4.25z" />
+    </svg>
+  );
+
+  const GitHubIcon = (
+    <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, flexShrink: 0 }} fill="#fff">
+      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.699-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z" />
     </svg>
   );
 
@@ -410,7 +469,7 @@ export default function Component() {
           <p style={{ fontSize: "0.85rem", color: "#888", marginBottom: "0.85rem", lineHeight: 1.5 }}>
             {step === "otp"
               ? `Paste the OTP sent to ${maskedTo}`
-              : "Continue with Gmail OTP or Google."}
+              : "Continue with Google, Apple, GitHub, or email OTP."}
           </p>
 
           {step === "identify" && (
@@ -445,23 +504,42 @@ export default function Component() {
 
               <div style={{ height: 1, background: "#222", width: "100%", margin: "0.85rem 0" }} />
 
-              {config?.googleClientId ? (
-                <div ref={googleBtnRef} style={{ width: "100%", display: "flex", justifyContent: "center" }} />
-              ) : (
-                <button type="button" style={socialBtn} onClick={() => void handleGoogleClick()} disabled={busy}>
-                  {GoogleIcon}
-                  Continue with Google
-                </button>
-              )}
+              <button
+                type="button"
+                style={socialBtn}
+                onClick={() => void completeProviderSignIn("google")}
+                disabled={busy || !(config?.providers.google ?? config?.allowDevOAuth)}
+              >
+                {GoogleIcon}
+                Continue with Google
+              </button>
+              <button
+                type="button"
+                style={socialBtn}
+                onClick={() => void completeProviderSignIn("apple")}
+                disabled={busy || !(config?.providers.apple ?? config?.allowDevOAuth)}
+              >
+                {AppleIcon}
+                Continue with Apple
+              </button>
+              <button
+                type="button"
+                style={{ ...socialBtn, marginBottom: 0 }}
+                onClick={() => void completeProviderSignIn("github")}
+                disabled={busy || !(config?.providers.github ?? config?.allowDevOAuth)}
+              >
+                {GitHubIcon}
+                Continue with GitHub
+              </button>
 
-              {config?.googleSetupHint && (
+              {config?.devGoogleHint && (
                 <p style={{ marginTop: "0.65rem", fontSize: "0.75rem", color: "#666", lineHeight: 1.4 }}>
-                  {config.googleSetupHint}
+                  {config.devGoogleHint}
                 </p>
               )}
-              {config?.devGoogleHint && (
-                <p style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "#666", lineHeight: 1.4 }}>
-                  {config.devGoogleHint}
+              {config?.firebaseSetupHint && !config.firebaseReady && (
+                <p style={{ marginTop: "0.35rem", fontSize: "0.75rem", color: "#555", lineHeight: 1.4 }}>
+                  {config.firebaseSetupHint}
                 </p>
               )}
 
@@ -557,6 +635,15 @@ export default function Component() {
           )}
         </div>
       </div>
+
+      <AuthConnectingPopup
+        open={oauthOpen}
+        provider={oauthProvider}
+        phase={oauthPhase}
+        error={oauthError}
+        onRetry={() => void completeProviderSignIn(oauthProvider)}
+        onDismiss={dismissOauthPopup}
+      />
     </div>
   );
 }
