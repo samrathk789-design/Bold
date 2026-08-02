@@ -13,6 +13,12 @@
         "failClosed": false
       }
     ],
+    "afterFileEdit": [
+      {
+        "command": ".cursor/hooks/auth-edit-context.sh",
+        "failClosed": false
+      }
+    ],
     "stop": [
       {
         "command": ".cursor/hooks/stop-checklist.sh"
