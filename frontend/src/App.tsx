@@ -57,7 +57,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LoginGate />} />
-          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<LoginGate />} />
           <Route path="/demo" element={<DemoOne />} />
           <Route
             path="/username"

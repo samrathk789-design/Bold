@@ -11,9 +11,11 @@ const Dithering = lazy(() =>
   import("@paper-design/shaders-react").then((mod) => ({ default: mod.Dithering }))
 )
 
-/** Soft burnt orange — less aggressive than #EC4E02 */
+/** Soft burnt orange — copper dither field */
 export const ORANGE_SOFT = "#C46A3A"
 export const ORANGE_MUTED = "#A85A32"
+export const COPPER_BACK = "#140c08"
+export const COPPER_FRONT = "#B56A3C"
 
 type WaveProps = {
   className?: string
@@ -22,7 +24,7 @@ type WaveProps = {
   boosted?: boolean
 }
 
-/** Full-bleed moving wave + ripple dithering layers */
+/** Full-bleed moving wave + ripple dithering layers (copper topographic look) */
 export function DitheringWaves({
   className = "",
   style,
@@ -34,52 +36,52 @@ export function DitheringWaves({
 
   return (
     <div
-      className={`absolute inset-0 overflow-hidden bg-black ${className}`}
-      style={style}
+      className={`absolute inset-0 overflow-hidden ${className}`}
+      style={{ background: COPPER_BACK, ...style }}
       onMouseEnter={interactive ? () => setIsHovered(true) : undefined}
       onMouseLeave={interactive ? () => setIsHovered(false) : undefined}
       aria-hidden="true"
     >
-      <Suspense fallback={<div className="absolute inset-0 bg-black" />}>
-        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.32] mix-blend-screen">
+      <Suspense fallback={<div className="absolute inset-0" style={{ background: COPPER_BACK }} />}>
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85]">
           <Dithering
-            colorBack="#00000000"
-            colorFront={ORANGE_SOFT}
+            colorBack={COPPER_BACK}
+            colorFront={COPPER_FRONT}
             shape="wave"
             type="4x4"
-            size={3}
-            scale={1.15}
-            speed={active ? 1.15 : 0.55}
+            size={2.5}
+            scale={1.2}
+            speed={active ? 1.05 : 0.5}
             className="size-full"
             minPixelRatio={1}
           />
         </div>
-        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.14] mix-blend-screen">
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.35]">
           <Dithering
             colorBack="#00000000"
             colorFront={ORANGE_MUTED}
-            shape="ripple"
+            shape="warp"
             type="8x8"
-            size={4}
-            scale={0.85}
-            speed={active ? 0.7 : 0.35}
+            size={3.5}
+            scale={0.9}
+            speed={active ? 0.65 : 0.32}
             className="size-full"
             minPixelRatio={1}
           />
         </div>
       </Suspense>
       <div
-        className="absolute inset-0 z-[1] pointer-events-none opacity-30"
+        className="absolute inset-0 z-[1] pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 80% 55% at 50% 110%, rgba(196, 106, 58, 0.22), transparent 58%)",
+            "radial-gradient(ellipse 70% 60% at 70% 50%, rgba(0,0,0,0.45), transparent 55%), linear-gradient(90deg, transparent 40%, rgba(0,0,0,0.55) 100%)",
           animation: "hero-wave-drift 9s ease-in-out infinite alternate",
         }}
       />
       <style>{`
         @keyframes hero-wave-drift {
-          0% { transform: translateY(0) scale(1); opacity: 0.22; }
-          100% { transform: translateY(-18px) scale(1.06); opacity: 0.38; }
+          0% { opacity: 0.85; }
+          100% { opacity: 1; }
         }
       `}</style>
     </div>

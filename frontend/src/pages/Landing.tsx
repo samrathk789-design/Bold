@@ -3,22 +3,22 @@ import { CTASection, ORANGE_SOFT } from "@/components/ui/hero-dithering-card";
 import "./Landing.css";
 
 /**
- * Main app entry: dithering hero card + original Bold login, together.
+ * Login page — copper dithering hero + Bold auth panel (matches design reference).
  */
 export default function LandingPage() {
   return (
     <div className="bold-landing">
       <CTASection
         className="bold-landing__hero"
-        minHeightClassName="min-h-[min(920px,100dvh)] md:min-h-[min(860px,100dvh)]"
+        minHeightClassName="min-h-[min(900px,100dvh)] md:min-h-[min(820px,94dvh)]"
       >
         <div className="bold-landing__grid">
           <div className="bold-landing__copy">
             <div
               className="bold-landing__badge"
               style={{
-                borderColor: "rgba(196, 106, 58, 0.22)",
-                background: "rgba(196, 106, 58, 0.08)",
+                borderColor: "rgba(196, 106, 58, 0.28)",
+                background: "rgba(0, 0, 0, 0.35)",
                 color: ORANGE_SOFT,
               }}
             >
@@ -37,7 +37,7 @@ export default function LandingPage() {
             <h1 className="bold-landing__title font-serif">
               Trade with
               <br />
-              <span className="text-white/80">clarity, not noise.</span>
+              <span className="text-white/85">clarity, not noise.</span>
             </h1>
             <p className="bold-landing__desc">
               Bold helps beginners read the market, journal cleaner, and learn risk — with a coach
